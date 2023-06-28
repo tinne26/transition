@@ -1,0 +1,50 @@
+name: build static binaries
+on: [workflow_dispatch]
+jobs:
+   build-linux:
+      runs-on: ubuntu-latest
+      steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+           go-version: 1.18
+      - name: install dependencies
+        shell: bash
+        run: sudo apt-get -y install libgl1-mesa-dev xorg-dev libasound2-dev
+      - name: build linux static binary
+        run: go build -o transition-linux-64bits -trimpath -ldflags "-w -s" main.go
+      - name: upload linux static binary
+        uses: actions/upload-artifact@v3
+        with:
+           name: transition-linux-64bits
+           path: transition-linux-64bits
+
+   build-windows:
+      runs-on: windows-latest
+      steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+           go-version: 1.18
+      - name: build windows static binary
+        run: go build -o transition-windows-64bits.exe -trimpath -ldflags "-w -s -H windowsgui" main.go
+      - name: upload windows static binary
+        uses: actions/upload-artifact@v3
+        with:
+           name: transition-windows-64bits.exe
+           path: transition-windows-64bits.exe
+  
+   build-macos:
+      runs-on: macos-latest
+      steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+           go-version: 1.20
+      - name: build macos static binary
+        run: go build -o transition-macos-64bits -trimpath -ldflags "-w -s" main.go
+      - name: upload macos static binary
+        uses: actions/upload-artifact@v3
+        with:
+           name: transition-macos-64bits
+           path: transition-macos-64bits
