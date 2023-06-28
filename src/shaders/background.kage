@@ -1,0 +1,27 @@
+package main
+
+const Pi = 3.14159
+const NoiseLevel = 0.08 //0.07
+
+var Randomness float
+
+func Fragment(_ vec4, texCoord vec2, _ vec4) vec4 {
+	// normalize tex coords
+	origin, size := imageSrcRegionOnTexture()
+	normTexCoords := texCoord - origin
+	normTexCoords  = normTexCoords/size
+	normTexCoords  = normTexCoords*4
+	
+
+	base := (normTexCoords.x*(Randomness*80) + normTexCoords.y*(Randomness*80)/2.7)
+	grain := (fract(7777*sin(5555*base*(Pi/180.0))) - 0.5)*NoiseLevel
+	//return vec4(grain, grain, grain, 1.0)
+
+	// apply grain noise level to input image
+	clr := imageSrc0At(texCoord)
+	maxColorChanValue := clr.a
+	clr.r = clamp(clr.r + grain, 0, maxColorChanValue)
+	clr.g = clamp(clr.g + grain, 0, maxColorChanValue)
+	clr.b = clamp(clr.b + grain, 0, maxColorChanValue)
+	return clr
+}

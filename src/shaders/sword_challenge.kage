@@ -1,0 +1,75 @@
+package main
+
+var Expansion float
+var HpLeft float
+var ProtectionAlpha float
+var ProtectionLevel float
+var FlashAlpha float
+var AngleShift float
+
+const AspectRatio = 16.0/9.0
+const CircleSizeFactor = 0.45
+const Edge = 0.009
+const Pi = 3.141592
+func Fragment(position vec4, _ vec2, _ vec4) vec4 {
+	unitCoords := position.xy/imageDstTextureSize()
+	origin, size := imageDstRegionOnTexture()
+	unitCoords -= origin
+	unitCoords /= size
+	
+	// compensate aspect ratio so we still have a circle, not an oval
+	unitCoords.x = (unitCoords.x - 0.5)*AspectRatio + 0.5
+
+	// get distance to center
+	distToCenter := 2.0*distance(vec2(0.5, 0.5), unitCoords)
+
+	hpLeft := min(HpLeft, Expansion)*CircleSizeFactor
+	
+	// apply center color
+	var out vec4
+	centerFactor := (1 - smoothstep(hpLeft, hpLeft + Edge, distToCenter))
+	out += vec4(0.96, 0.38, 0.25, 1.0)*centerFactor*0.8
+	
+	// apply expansion color
+	expansion := Expansion*CircleSizeFactor
+	expansionFactor := max((1 - smoothstep(expansion, expansion + Edge, distToCenter)) - centerFactor, 0.0)	
+	out += vec4(0.96, 0.38, 0.25, 1.0)*expansionFactor*0.4
+
+	// apply protection color
+	pmin, pmax := 1.13*CircleSizeFactor, 1.17*CircleSizeFactor
+	protectionFactor := min(
+		smoothstep(pmin, pmin + Edge, distToCenter),
+		1 - smoothstep(pmax, pmax + Edge, distToCenter),
+	)
+	// (angle calculation)
+	angle := atan2(0.5 - unitCoords.y, 0.5 - unitCoords.x)
+	sect := mod(angle + AngleShift, 2.0*Pi/16.0)
+	protectionFactor *= smoothstep(sect, sect + Edge, ProtectionLevel*((2.0*Pi)/16.0))
+	out += vec4(0.97, 0.41, 0.38, 1.0)*protectionFactor*ProtectionAlpha
+
+	// NOTE: decoration rings are pretty but distracting
+	// // outer decoration ring
+	// rmin, rmax := 1.38*CircleSizeFactor, 1.39*CircleSizeFactor
+	// ringFactor := min(smoothstep(rmin, rmin + Edge, distToCenter), 1 - smoothstep(rmax, rmax + Edge, distToCenter))
+	// sect = mod(angle - AngleShift, 2.0*Pi/8.0)
+	// ringFactor *= smoothstep(sect, sect + Edge, 0.5*((2.0*Pi)/8.0))
+	// out += vec4(0.33, 0.91, 0.67, 1.0)*ringFactor*0.7
+
+	// // inner decoration rings
+	// rmin, rmax = 0.7*CircleSizeFactor, 0.71*CircleSizeFactor
+	// ringFactor = min(smoothstep(rmin, rmin + Edge, distToCenter), 1 - smoothstep(rmax, rmax + Edge, distToCenter))
+	// sect = mod(angle + AngleShift/2, 2.0*Pi/12.0)
+	// ringFactor *= smoothstep(sect, sect + Edge, 0.36*((2.0*Pi)/12.0))
+	// out += vec4(0.33, 0.91, 0.67, 1.0)*ringFactor*0.7
+
+	// rmin, rmax = 0.3*CircleSizeFactor, 0.31*CircleSizeFactor
+	// ringFactor = min(smoothstep(rmin, rmin + Edge, distToCenter), 1 - smoothstep(rmax, rmax + Edge, distToCenter))
+	// sect = mod(angle - AngleShift/3, 2.0*Pi/24.0)
+	// ringFactor *= smoothstep(sect, sect + Edge, 0.5*((2.0*Pi)/24.0))
+	// out += vec4(0.33, 0.91, 0.67, 1.0)*ringFactor*0.7
+
+	// apply flash color
+	out += vec4(0.97, 0.41, 0.38, 1.0)*FlashAlpha
+
+	return out
+}
