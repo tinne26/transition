@@ -45,6 +45,7 @@ func main() {
 	if err != nil { debug.Fatal(err) }
 	err = audio.LoadSFX(filesys)
 	if err != nil { debug.Fatal(err) }
+	audio.PlayBGM(filesys)
 
 	// create game and run it
 	gg, err := game.New(filesys)

@@ -6,6 +6,9 @@ import "math/rand"
 
 import "github.com/hajimehoshi/ebiten/v2/audio"
 import "github.com/hajimehoshi/ebiten/v2/audio/wav"
+import "github.com/hajimehoshi/ebiten/v2/audio/vorbis"
+
+import "github.com/tinne26/edau"
 
 var SfxStep1 *SfxPlayer
 var SfxStep2 *SfxPlayer
@@ -38,9 +41,22 @@ func PlaySwordTap() {
 	PlayStep()
 }
 
-func LoadSFX(filesys fs.FS) error {
-	ctx := audio.NewContext(44100)
+var ctx = audio.NewContext(44100)
 
+func PlayBGM(filesys fs.FS) error {
+	file, err := filesys.Open("assets/audio/bgm/background.ogg")
+	if err != nil { return err }
+	stream, err := vorbis.DecodeWithSampleRate(44100, file)
+	if err != nil { return err }
+	looper := edau.NewLooper(stream, 343*4, 2601934*4)
+	player, err := audio.NewPlayer(ctx, looper)
+	player.SetVolume(0.5)
+	if err != nil { return err }
+	player.Play()
+	return nil
+}
+
+func LoadSFX(filesys fs.FS) error {
 	// load sfx
 	var err error
 	SfxJump, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/wings.wav")
