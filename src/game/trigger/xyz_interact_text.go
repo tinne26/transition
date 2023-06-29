@@ -2,6 +2,7 @@ package trigger
 
 import "github.com/tinne26/transition/src/game/u16"
 import "github.com/tinne26/transition/src/input"
+import "github.com/tinne26/transition/src/audio"
 
 var _ Trigger = (*TrigInteractText)(nil)
 
@@ -23,6 +24,7 @@ func (self *TrigInteractText) Update(playerRect u16.Rect, state *State) (any, er
 	if !self.area.Overlap(playerRect) { return nil, nil }
 	
 	if input.Trigger(input.ActionInteract) {
+		audio.PlayInteract()
 		return self.text, nil
 	} else {
 		return self.hint, nil

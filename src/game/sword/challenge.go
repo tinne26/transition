@@ -7,6 +7,7 @@ import "github.com/hajimehoshi/ebiten/v2"
 import "github.com/tinne26/transition/src/text"
 import "github.com/tinne26/transition/src/input"
 import "github.com/tinne26/transition/src/shaders"
+import "github.com/tinne26/transition/src/audio"
 import "github.com/tinne26/transition/src/game/clr"
 
 // plan:
@@ -122,6 +123,7 @@ func (self *Challenge) Update() error {
 	// main progress logic
 	if self.isProtectionActive {
 		if acceptInput && input.Trigger(input.ActionOutReverse) {
+			audio.PlaySwordTap()
 			self.protection -= 0.06
 			if self.protection <= 0.0 {
 				self.isProtectionActive = false
@@ -147,6 +149,7 @@ func (self *Challenge) Update() error {
 				if self.hp < 0.0 {
 					self.flashChange = FlashSpeed
 					self.hp = 0.0
+					audio.PlaySwordEnd()
 				}
 			} else {
 				self.consecutiveHold = 0

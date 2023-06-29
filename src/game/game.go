@@ -17,6 +17,7 @@ import "github.com/tinne26/transition/src/game/hint"
 import "github.com/tinne26/transition/src/game/clr"
 import "github.com/tinne26/transition/src/game/sword"
 import "github.com/tinne26/transition/src/camera"
+import "github.com/tinne26/transition/src/audio"
 import "github.com/tinne26/transition/src/input"
 import "github.com/tinne26/transition/src/utils"
 import "github.com/tinne26/transition/src/text"
@@ -150,6 +151,7 @@ func (self *Game) Update() error {
 
 	if self.longText != nil { // hacky little part
 		if input.Trigger(input.ActionInteract) {
+			audio.PlayInteract()
 			self.longText = nil
 			self.level.GetBackMasks().Add(bckg.MaskEbi, 0.2)
 		}
@@ -201,6 +203,7 @@ func (self *Game) Update() error {
 	// detect player death from falling
 	lim := self.level.GetLimits()
 	if playerRect.Min.Y > lim.Max.Y + 200 {
+		audio.PlayDeath()
 		for _, trigger := range self.levelTriggers { trigger.OnDeath(self.trigState) }
 		self.respawnPlayer()
 		self.camera.Center()

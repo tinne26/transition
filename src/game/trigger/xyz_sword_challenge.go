@@ -5,6 +5,7 @@ import "image/color"
 import "github.com/tinne26/transition/src/game/u16"
 import "github.com/tinne26/transition/src/input"
 import "github.com/tinne26/transition/src/text"
+import "github.com/tinne26/transition/src/audio"
 
 var white color.RGBA = color.RGBA{255, 255, 255, 255}
 var apology = []*text.Message{
@@ -40,6 +41,7 @@ func (self *TrigSwordChallenge) Update(playerRect u16.Rect, state *State) (any, 
 	
 	if !self.done {
 		if input.Trigger(input.ActionInteract) {
+			audio.PlayInteract()
 			self.done = true
 			return self.challenge, nil
 		}
@@ -48,6 +50,7 @@ func (self *TrigSwordChallenge) Update(playerRect u16.Rect, state *State) (any, 
 
 	if state.SwordChallengesSolved > 0 {
 		if input.Trigger(input.ActionInteract) {
+			audio.PlayInteract()
 			self.apologyIndex += 1
 		}
 		if self.apologyIndex < len(apology) {

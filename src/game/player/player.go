@@ -10,6 +10,7 @@ import "github.com/hajimehoshi/ebiten/v2"
 import "github.com/tinne26/transition/src/camera"
 import "github.com/tinne26/transition/src/input"
 import "github.com/tinne26/transition/src/utils"
+import "github.com/tinne26/transition/src/audio"
 import "github.com/tinne26/transition/src/game/level"
 import "github.com/tinne26/transition/src/game/level/block"
 import "github.com/tinne26/transition/src/game/u16"
@@ -50,6 +51,7 @@ type Player struct {
 	harmCooldown uint8 // if non zero, the player has been harmed, 
 	                   // show fx and becomes invulnerable
 	ticksDead uint8
+	sinceIdleStepSfx uint32
 }
 
 func New() *Player {
@@ -96,6 +98,8 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level) error 
 	if input.Trigger(input.ActionCenterCamera) {
 		cam.RequireMustMatch()
 	}
+
+	self.sinceIdleStepSfx += 1
 
 	// death doesn't become undone
 	if self.ticksDead > 0 {
@@ -147,11 +151,19 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level) error 
 		// apply new motion state triggers if relevant
 		if self.motionState == MStIdle {
 			self.setMotionState(MStMoving, AnimRun)
+			if self.sinceIdleStepSfx > 8 {
+				audio.PlayStep()
+				self.sinceIdleStepSfx = 0
+			}
 		}
 
 		// apply movement to X position
 		newX += horzDir.Sign()*self.getHorzMovSpeed()
 		self.orientation = horzDir
+	}
+
+	if self.anim == AnimRun && self.motionStateTicks > 8 && self.motionStateTicks % 16 == 7 {
+		audio.PlayStep()
 	}
 
 	// DEBUG ONLY (one pixel move)
@@ -176,6 +188,7 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level) error 
 		self.sinceJumpTrigger = 0
 	}
 	if jumping && self.motionStateAllowsJump() {
+		audio.PlayJump()
 		self.sinceJumpTrigger = 99999
 
 		// common setup
@@ -269,6 +282,7 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level) error 
 				if self.motionState == MStFalling {
 					// TODO: consider fall damage or big impact reception.
 					// e.g. jump start y, or airMaxY vs current Y.
+					audio.PlayStep()
 					if self.x != newX {
 						self.setMotionState(MStMoving, AnimRun)
 						self.anim.SkipIntro()

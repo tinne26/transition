@@ -2,6 +2,7 @@ package trigger
 
 import "github.com/tinne26/transition/src/game/u16"
 import "github.com/tinne26/transition/src/input"
+import "github.com/tinne26/transition/src/audio"
 
 type TipID uint8
 const (
@@ -60,6 +61,7 @@ func (self *TrigShowTip) Update(playerRect u16.Rect, state *State) (any, error) 
 
 	// "remove" the trigger if using the right key
 	if input.Trigger(input.ActionInteract) {
+		audio.PlayInteract()
 		state.MarkTipCleared(self.id)
 		self.cleared = true
 		state.AnyTipClosed = true

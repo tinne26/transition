@@ -2,6 +2,7 @@ package trigger
 
 import "github.com/tinne26/transition/src/game/u16"
 import "github.com/tinne26/transition/src/input"
+import "github.com/tinne26/transition/src/audio"
 
 var _ Trigger = (*TrigSwitchSave)(nil)
 
@@ -33,6 +34,7 @@ func (self *TrigSwitchSave) Update(playerRect u16.Rect, state *State) (any, erro
 
 	// regular logic
 	if input.Trigger(input.ActionOutReverse) {
+		audio.PlayReverse()
 		state.lastSaveTrigger.activated = false
 		state.lastSaveTrigger = self
 		self.activated = true

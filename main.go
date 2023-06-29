@@ -10,6 +10,7 @@ import "github.com/tinne26/transition/src/utils"
 import "github.com/tinne26/transition/src/game"
 import "github.com/tinne26/transition/src/game/level"
 import "github.com/tinne26/transition/src/game/hint"
+import "github.com/tinne26/transition/src/audio"
 
 // Windows compilation:
 // > go build -o game.exe -trimpath -ldflags "-w -s -H windowsgui" -tags "ebitenginesinglethread" main.go
@@ -24,6 +25,7 @@ func main() {
 	// ebitengine basic config
 	err := utils.OnWindowsPreferOpenGL()
 	if err != nil { debug.Fatal(err) }
+	ebiten.SetCursorMode(ebiten.CursorModeHidden)
 	ebiten.SetWindowTitle("tinne/transition")
 	ebiten.SetScreenClearedEveryFrame(false)
 	if utils.OsArgReceived("--windowed") {
@@ -40,6 +42,8 @@ func main() {
 	err = level.CreateAll(filesys)
 	if err != nil { debug.Fatal(err) }
 	err = hint.LoadHintGraphics(filesys)
+	if err != nil { debug.Fatal(err) }
+	err = audio.LoadSFX(filesys)
 	if err != nil { debug.Fatal(err) }
 
 	// create game and run it
