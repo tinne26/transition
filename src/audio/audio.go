@@ -44,13 +44,16 @@ func PlaySwordTap() {
 var ctx = audio.NewContext(44100)
 
 func PlayBGM(filesys fs.FS) error {
+	const LoopStartSample = 200
+	const LoopEndSample   = 5510869
+
 	file, err := filesys.Open("assets/audio/bgm/background.ogg")
 	if err != nil { return err }
 	stream, err := vorbis.DecodeWithSampleRate(44100, file)
 	if err != nil { return err }
-	looper := edau.NewLooper(stream, 343*4, 2601934*4)
+	looper := edau.NewLooper(stream, LoopStartSample*4, LoopEndSample*4)
 	player, err := audio.NewPlayer(ctx, looper)
-	player.SetVolume(0.5)
+	player.SetVolume(0.4)
 	if err != nil { return err }
 	player.Play()
 	return nil
@@ -61,35 +64,35 @@ func LoadSFX(filesys fs.FS) error {
 	var err error
 	SfxJump, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/wings.wav")
 	if err != nil { return err }
-	SfxJump.SetVolume(0.3)
+	SfxJump.SetVolume(0.9)
 
 	SfxStep1, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/step1.wav")
 	if err != nil { return err }
-	SfxStep1.SetVolume(0.1)
+	SfxStep1.SetVolume(0.5)
 	
 	SfxStep2, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/step2.wav")
 	if err != nil { return err }
-	SfxStep2.SetVolume(0.1)
+	SfxStep2.SetVolume(0.5)
 
 	SfxStep3, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/step3.wav")
 	if err != nil { return err }
-	SfxStep3.SetVolume(0.1)
+	SfxStep3.SetVolume(0.5)
 
 	SfxDeath, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/death.wav")
 	if err != nil { return err }
-	SfxDeath.SetVolume(0.34)
+	SfxDeath.SetVolume(0.74)
 
 	SfxInteract, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/interact.wav")
 	if err != nil { return err }
-	SfxInteract.SetVolume(0.25)
+	SfxInteract.SetVolume(0.42)
 
 	SfxReverse, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/reverse.wav")
 	if err != nil { return err }
-	SfxReverse.SetVolume(0.3)
+	SfxReverse.SetVolume(0.5)
 	
 	SfxSword, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/sword_end.wav")
 	if err != nil { return err }
-	SfxSword.SetVolume(0.2)
+	SfxSword.SetVolume(0.44)
 
 	return nil
 }
