@@ -110,10 +110,13 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level) error 
 	// increase misc. counters
 	self.motionStateTicks += 1
 	self.sinceJumpTrigger += 1
+	self.updateWallStickHacks()
 	self.anim.Update()
 	self.detailAnim.Update()
 
-	// hacks
+	// hacks to smooth steps on stairs
+	// (basically, a form of delayed position hacking, so we move
+	// around ~7 pixels in multiple frames instead of a single one)
 	if self.stepHackHorz != 0 {
 		if self.stepHackHorz > 0 {
 			self.stepHackHorz -= 1
@@ -218,12 +221,20 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level) error 
 	// handle letting go wall stick
 	if self.motionState == MStWallStick && input.Trigger(input.ActionDown) {
 		self.setMotionState(MStFalling, AnimInAir)
+		self.x -= self.orientation.Sign()*1.0 // force slight distancing from wall
+		newX = self.x
 	}
 
 	// handle gravity
 	switch self.motionState {
 	case MStFalling:
 		newY += self.airFallSpeed()
+		
+		// handle wall stick jump separation
+		if self.wallStickAwayJumpLeft > 0 {
+			self.wallStickAwayJumpLeft -= 1
+			newX += self.orientation.Sign()*self.getHorzMovSpeed()
+		}
 	case MStWallStick:
 		if self.motionStateTicks < 24 {
 			// nothing, stay still
@@ -231,6 +242,8 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level) error 
 			newY += 0.1
 		} else {
 			self.setMotionState(MStFalling, AnimInAir)
+			self.x -= self.orientation.Sign()*1.0 // force slight distancing from wall
+			newX = self.x
 		}
 	case MStJumping, MStWingJump:
 		speed := self.getJumpRaiseSpeed()
@@ -572,6 +585,16 @@ func (self *Player) removeAllBlockFlagInertias() {
 
 // ---- helper functions ----
 
+func (self *Player) updateWallStickHacks() {
+	if self.wallStickAwayJumpLeft == 0 { return }
+	
+	if self.motionState == MStFalling {
+		self.wallStickAwayJumpLeft -= 1
+	} else if self.motionState != MStJumping {
+		self.wallStickAwayJumpLeft = 0
+	}
+}
+
 func (self *Player) setMotionState(state MotionState, anim *Animation) {
 	//fmt.Printf("setting motion state %s, anim %s\n", state.String(), anim.Name())
 	self.motionState = state // always possible due to level design
@@ -593,6 +616,8 @@ func (self *Player) setMotionState(state MotionState, anim *Animation) {
 }
 
 func (self *Player) motionStateAllowsHorzMove() bool {
+	if self.wallStickAwayJumpLeft > 0 { return false }
+
 	switch self.motionState {
 	case MStFalling, MStIdle, MStMoving, MStWingJump:
 		return true
