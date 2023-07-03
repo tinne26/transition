@@ -1,6 +1,7 @@
 package level
 
 import "github.com/tinne26/transition/src/game/level/block"
+import "github.com/tinne26/transition/src/game/level/lvlkey"
 import "github.com/tinne26/transition/src/game/trigger"
 import "github.com/tinne26/transition/src/game/hint"
 import "github.com/tinne26/transition/src/game/u16"
@@ -15,7 +16,7 @@ func QuickNewBlock(id block.ID) *block.Block {
 	return &b
 }
 
-func NewSwitchSaveTrigger(saveBlock *block.Block, entry EntryKey) trigger.Trigger {
+func NewSwitchSaveTrigger(saveBlock *block.Block, entry lvlkey.EntryKey) trigger.Trigger {
 	return trigger.NewSwitchSave(
 		u16.NewRect(saveBlock.X - Hop*1, saveBlock.Y, saveBlock.Right() + Hop*1, saveBlock.Bottom()),
 		entry,

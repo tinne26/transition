@@ -6,6 +6,7 @@ import "image/color"
 import "github.com/hajimehoshi/ebiten/v2"
 
 import "github.com/tinne26/transition/src/game/level/block"
+import "github.com/tinne26/transition/src/game/level/lvlkey"
 import "github.com/tinne26/transition/src/game/trigger"
 import "github.com/tinne26/transition/src/game/bckg"
 import "github.com/tinne26/transition/src/game/u16"
@@ -267,7 +268,7 @@ func (self *Level) DisableSavepoints() {
 	}
 }
 
-func (self *Level) EnableSavepoint(saveKey EntryKey) {
+func (self *Level) EnableSavepoint(saveKey lvlkey.EntryKey) {
 	closestSaveIndex := -1
 	closestSaveDist  := 99999
 	

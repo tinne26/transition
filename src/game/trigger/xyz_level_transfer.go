@@ -1,6 +1,7 @@
 package trigger
 
 import "github.com/tinne26/transition/src/game/u16"
+import "github.com/tinne26/transition/src/game/level/lvlkey"
 
 var _ Trigger = (*TrigLevelTransfer)(nil)
 
@@ -10,7 +11,7 @@ const (
 	LeftTransfer  TransferDir = 1
 )
 
-type Transfer struct { Key any }
+type Transfer struct { Key lvlkey.EntryKey }
 
 type TrigLevelTransfer struct {
 	area u16.Rect
@@ -19,7 +20,7 @@ type TrigLevelTransfer struct {
 	// ...
 }
 
-func NewLevelTransfer(x, y uint16, dir TransferDir, entryKey any) Trigger {
+func NewLevelTransfer(x, y uint16, dir TransferDir, entryKey lvlkey.EntryKey) Trigger {
 	switch dir {
 	case RightTransfer:
 		return &TrigLevelTransfer{
@@ -33,6 +34,7 @@ func NewLevelTransfer(x, y uint16, dir TransferDir, entryKey any) Trigger {
 			dir: dir,
 			trans: Transfer{entryKey},
 		}
+	// TODO: add UpTransfer and DownTransfer if necessary.
 	default:
 		panic(dir)
 	}

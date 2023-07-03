@@ -1,11 +1,14 @@
 package trigger
 
+import "github.com/tinne26/transition/src/game/level/lvlkey"
+
 type FlagID uint8
 const (
 	FlagNone FlagID = iota
 	FlagSomethingSomething
 )
 
+// TODO: may need to move this to a game/state package instead
 type State struct {
 	Flags map[FlagID]struct{}
 	TipIDsMarkedCleared map[TipID]struct{}
@@ -13,11 +16,11 @@ type State struct {
 	AnyTipClosed bool
 	SwordChallengesSolved uint16
 
-	LastSaveEntryKey any
+	LastSaveEntryKey lvlkey.EntryKey
 	lastSaveTrigger *TrigSwitchSave
 }
 
-func NewState(saveEntryKey any) *State {
+func NewState(saveEntryKey lvlkey.EntryKey) *State {
 	return &State{
 		Flags: make(map[FlagID]struct{}, 16),
 		TipIDsMarkedCleared: make(map[TipID]struct{}, 4),

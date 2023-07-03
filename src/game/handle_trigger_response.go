@@ -1,6 +1,7 @@
 package game
 
 import "github.com/tinne26/transition/src/game/level"
+import "github.com/tinne26/transition/src/game/level/lvlkey"
 import "github.com/tinne26/transition/src/game/hint"
 import "github.com/tinne26/transition/src/game/trigger"
 import "github.com/tinne26/transition/src/game/sword"
@@ -12,17 +13,17 @@ func (self *Game) HandleTriggerResponse(response any) {
 		self.textMessage = typedResponse
 	case hint.Hint:
 		self.activeHint = &typedResponse
-	case level.EntryKey:
+	case lvlkey.EntryKey:
 		// changing savepoint key
 		key := typedResponse
-		lvl, _ := level.GetEntryPoint(self.trigState.LastSaveEntryKey.(level.EntryKey))
+		lvl, _ := level.GetEntryPoint(self.trigState.LastSaveEntryKey)
 		lvl.DisableSavepoints()
 		self.trigState.LastSaveEntryKey = key
 		lvl, _ = level.GetEntryPoint(key)
 		lvl.EnableSavepoint(key)
 	case trigger.Transfer:
 		self.fadeInTicksLeft = FadeTicks
-		lvl, pt := level.GetEntryPoint(typedResponse.Key.(level.EntryKey))
+		lvl, pt := level.GetEntryPoint(typedResponse.Key)
 		self.transferPlayer(lvl, pt)
 	case []string:
 		self.longText = typedResponse

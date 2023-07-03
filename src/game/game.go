@@ -213,7 +213,7 @@ func (self *Game) Update() error {
 }
 
 func (self *Game) respawnPlayer() {
-	lvl, pt := level.GetEntryPoint(level.EntryKey(self.trigState.LastSaveEntryKey.(level.EntryKey)))
+	lvl, pt := level.GetEntryPoint(self.trigState.LastSaveEntryKey)
 	self.transferPlayer(lvl, pt)
 }
 

@@ -1,6 +1,7 @@
 package trigger
 
 import "github.com/tinne26/transition/src/game/u16"
+import "github.com/tinne26/transition/src/game/hint"
 import "github.com/tinne26/transition/src/input"
 import "github.com/tinne26/transition/src/audio"
 
@@ -8,14 +9,14 @@ var _ Trigger = (*TrigInteractText)(nil)
 
 type TrigInteractText struct {
 	area u16.Rect
-	hint any
+	ihint hint.Hint
 	text []string
 }
 
-func NewInteractText(area u16.Rect, hint any, text []string) Trigger {
+func NewInteractText(area u16.Rect, ihint hint.Hint, text []string) Trigger {
 	return &TrigInteractText{
 		area: area,
-		hint: hint,
+		ihint: ihint,
 		text: text,
 	}
 }
@@ -27,7 +28,7 @@ func (self *TrigInteractText) Update(playerRect u16.Rect, state *State) (any, er
 		audio.PlayInteract()
 		return self.text, nil
 	} else {
-		return self.hint, nil
+		return self.ihint, nil
 	}
 
 	return nil, nil

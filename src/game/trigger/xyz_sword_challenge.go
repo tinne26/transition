@@ -3,6 +3,8 @@ package trigger
 import "image/color"
 
 import "github.com/tinne26/transition/src/game/u16"
+import "github.com/tinne26/transition/src/game/hint"
+import "github.com/tinne26/transition/src/game/sword"
 import "github.com/tinne26/transition/src/input"
 import "github.com/tinne26/transition/src/text"
 import "github.com/tinne26/transition/src/audio"
@@ -23,15 +25,15 @@ var _ Trigger = (*TrigSwordChallenge)(nil)
 type TrigSwordChallenge struct {
 	done bool
 	area u16.Rect
-	hint any // hint.Hint
-	challenge any // *sword.Challenge
+	ihint hint.Hint
+	challenge *sword.Challenge
 	apologyIndex int
 }
 
-func NewSwordChallenge(area u16.Rect, hint any, challenge any) Trigger {
+func NewSwordChallenge(area u16.Rect, ihint hint.Hint, challenge *sword.Challenge) Trigger {
 	return &TrigSwordChallenge{
 		area: area,
-		hint: hint,
+		ihint: ihint,
 		challenge: challenge,
 	}
 }
@@ -45,7 +47,7 @@ func (self *TrigSwordChallenge) Update(playerRect u16.Rect, state *State) (any, 
 			self.done = true
 			return self.challenge, nil
 		}
-		return self.hint, nil
+		return self.ihint, nil
 	}
 
 	if state.SwordChallengesSolved > 0 {

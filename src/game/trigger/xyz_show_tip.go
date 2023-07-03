@@ -2,7 +2,11 @@ package trigger
 
 import "github.com/tinne26/transition/src/game/u16"
 import "github.com/tinne26/transition/src/input"
+import "github.com/tinne26/transition/src/text"
 import "github.com/tinne26/transition/src/audio"
+
+// TODO: this is overly complex and unnecessary. have two areas, allow them
+//       to overlap, remove tip on second area.
 
 type TipID uint8
 const (
@@ -12,7 +16,8 @@ const (
 	TipMoreJumps
 	TipHowToCloseTips
 	TipHowToWallStick
-	TipHowToReverseAndDash
+	TipHowToReverseAndDash // TODO: this may be a whole text fragment being shown as the last tutorial,
+	                       //       also including how to open menu and stuff.
 )
 
 var _ Trigger = (*TrigShowTip)(nil)
@@ -20,7 +25,7 @@ var _ Trigger = (*TrigShowTip)(nil)
 type TrigShowTip struct {
 	id TipID
 	area u16.Rect
-	msg any
+	msg *text.Message
 	wasActive bool
 	persist TipPersistency
 	cleared bool // we could know anyway, but this will be faster
@@ -33,7 +38,7 @@ const (
 )
 
 // Can pass FlagNone
-func NewShowTip(area u16.Rect, tipID TipID, msg any, persist TipPersistency) Trigger {
+func NewShowTip(area u16.Rect, tipID TipID, msg *text.Message, persist TipPersistency) Trigger {
 	return &TrigShowTip{
 		id: tipID,
 		area: area,
