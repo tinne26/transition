@@ -30,7 +30,8 @@ type Player struct {
 	spentWingJump bool
 	spentWallStick bool
 	jumpTicksGoal uint32
-	wallStickAwayJumpLeft uint32
+	sinceNoContactFall uint32
+	wallStickAwayJumpLeft uint16
 
 	stepHackHorz int8 // soften steps
 	stepHackVert int8
@@ -110,6 +111,7 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level) error 
 	// increase misc. counters
 	self.motionStateTicks += 1
 	self.sinceJumpTrigger += 1
+	self.sinceNoContactFall += 1
 	self.updateWallStickHacks()
 	self.anim.Update()
 	self.detailAnim.Update()
@@ -200,6 +202,9 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level) error 
 		self.jumpTicksGoal = DefaultJumpTicks
 
 		// specific setup
+		if self.motionState == MStFalling && self.allowLenientJumpOnFall() {
+			self.motionState = MStMoving // hack for lenient jumps
+		}
 		switch self.motionState {
 		case MStJumping, MStFalling:
 			self.setMotionState(MStWingJump, AnimInAir)
@@ -447,6 +452,7 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level) error 
 
 		// switch to falling if relevant on lack of contact
 		if self.canSlipIntoFall() && floorContact == block.ContactNone {
+			self.sinceNoContactFall = 1
 			self.setMotionState(MStFalling, AnimInAir)
 		}
 
@@ -634,10 +640,15 @@ func (self *Player) motionStateAllowsJump() bool {
 	case MStIdle, MStMoving, MStWallStick:
 		return true
 	case MStFalling, MStJumping:
-		return !self.reversingSelf && !self.spentWingJump
+		if self.allowLenientJumpOnFall() { return true }
+		return !self.reversingSelf && !self.spentWingJump && self.sinceNoContactFall > 18
 	default:
 		return false
 	}
+}
+
+func (self *Player) allowLenientJumpOnFall() bool {
+	return self.sinceNoContactFall < 6 // leniency on jumps
 }
 
 func (self *Player) motionStateCanStopGroundHorzMove() bool {
