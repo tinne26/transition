@@ -18,6 +18,7 @@ const (
 
 	ActionCenterCamera
 	ActionFullscreen
+	ActionFullscreen2
 	
 	actionEndSentinel
 )

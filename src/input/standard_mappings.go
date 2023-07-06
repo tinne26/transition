@@ -16,6 +16,7 @@ var stdKeyboardMappingWASD = map[Action]ebiten.Key{
 
 	ActionCenterCamera: ebiten.KeyQ,
 	ActionFullscreen: ebiten.KeyF,
+	ActionFullscreen2: ebiten.KeyF11,
 }
 
 // TODO: stdGamepadMappingAlt, etc
@@ -28,9 +29,11 @@ var stdGamepadMapping = map[Action]ebiten.StandardGamepadButton{
 	ActionOutReverse: ebiten.StandardGamepadButtonFrontTopRight,
 	ActionInteract: ebiten.StandardGamepadButtonRightRight,
 
-	ActionOnePixelRight: -1, // unassigned
-	ActionOnePixelLeft: -1, // unassigned
-
 	ActionCenterCamera: ebiten.StandardGamepadButtonFrontTopLeft,
 	ActionFullscreen: ebiten.StandardGamepadButtonCenterLeft,
+
+	// unassigned actions
+	ActionOnePixelRight: -1,
+	ActionOnePixelLeft: -1,
+	ActionFullscreen2: -1,
 }

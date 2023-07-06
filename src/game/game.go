@@ -136,7 +136,7 @@ func (self *Game) Update() error {
 	err = input.Update()
 	if err != nil { return err }
 
-	if input.Trigger(input.ActionFullscreen) {
+	if input.Trigger(input.ActionFullscreen) || input.Trigger(input.ActionFullscreen2) {
 		ebiten.SetFullscreen(!ebiten.IsFullscreen())
 	}
 
