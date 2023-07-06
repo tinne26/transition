@@ -1,5 +1,6 @@
 package main
 
+import "image"
 import "embed"
 
 import "github.com/hajimehoshi/ebiten/v2"
@@ -31,7 +32,10 @@ func main() {
 	if utils.OsArgReceived("--windowed") {
 		utils.SetMaxMultRawWindowSize(640, 360, 128)
 	} else {
-		ebiten.SetWindowSize(640, 360)
+		// notice: setting a proper size before fullscreening
+		//         is critical in case we later leave fullscreen
+		w, h := utils.FindMaxMultRawWindowSize(640, 360, 128)
+		ebiten.SetWindowSize(w, h)
 		ebiten.SetFullscreen(true)
 	}
 
@@ -45,7 +49,16 @@ func main() {
 	if err != nil { debug.Fatal(err) }
 	err = audio.LoadSFX(filesys)
 	if err != nil { debug.Fatal(err) }
-	audio.PlayBGM(filesys)
+	audio.PlayBGM(filesys) // hack
+
+	// set window icon
+	ico16, err := utils.LoadFsImage(filesys, "assets/ico/16x16.png")
+	if err != nil { debug.Fatal(err) }
+	ico32, err := utils.LoadFsImage(filesys, "assets/ico/32x32.png")
+	if err != nil { debug.Fatal(err) }
+	ico48, err := utils.LoadFsImage(filesys, "assets/ico/48x48.png")
+	if err != nil { debug.Fatal(err) }
+	ebiten.SetWindowIcon([]image.Image{ico16, ico32, ico48})
 
 	// create game and run it
 	gg, err := game.New(filesys)
