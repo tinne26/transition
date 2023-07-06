@@ -11,7 +11,7 @@ type SfxPlayer struct {
 }
 
 func NewSfxPlayer(context *audio.Context, bytes []byte) *SfxPlayer{
-	return &SfxPlayer { context: context, source: bytes, volume: 1.0 }
+	return &SfxPlayer{ context: context, source: bytes, volume: 1.0 }
 }
 
 func (self *SfxPlayer) SetVolume(volume float64) {

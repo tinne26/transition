@@ -45,7 +45,7 @@ var ctx = audio.NewContext(44100)
 
 func PlayBGM(filesys fs.FS) error {
 	const LoopStartSample = 200
-	const LoopEndSample   = 5510869
+	const LoopEndSample   = 5510900
 
 	file, err := filesys.Open("assets/audio/bgm/background.ogg")
 	if err != nil { return err }
@@ -64,19 +64,19 @@ func LoadSFX(filesys fs.FS) error {
 	var err error
 	SfxJump, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/wings.wav")
 	if err != nil { return err }
-	SfxJump.SetVolume(0.9)
+	SfxJump.SetVolume(0.7)
 
 	SfxStep1, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/step1.wav")
 	if err != nil { return err }
-	SfxStep1.SetVolume(0.5)
+	SfxStep1.SetVolume(0.26)
 	
 	SfxStep2, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/step2.wav")
 	if err != nil { return err }
-	SfxStep2.SetVolume(0.5)
+	SfxStep2.SetVolume(0.26)
 
 	SfxStep3, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/step3.wav")
 	if err != nil { return err }
-	SfxStep3.SetVolume(0.5)
+	SfxStep3.SetVolume(0.26)
 
 	SfxDeath, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/death.wav")
 	if err != nil { return err }
@@ -92,7 +92,7 @@ func LoadSFX(filesys fs.FS) error {
 	
 	SfxSword, err = loadWavSoundEffect(ctx, filesys, "assets/audio/sfx/sword_end.wav")
 	if err != nil { return err }
-	SfxSword.SetVolume(0.44)
+	SfxSword.SetVolume(0.37)
 
 	return nil
 }
