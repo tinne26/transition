@@ -1,7 +1,6 @@
 package player
 
 import "math"
-import "image"
 import "image/color"
 import "strconv"
 
@@ -11,6 +10,7 @@ import "github.com/tinne26/transition/src/camera"
 import "github.com/tinne26/transition/src/input"
 import "github.com/tinne26/transition/src/utils"
 import "github.com/tinne26/transition/src/audio"
+import "github.com/tinne26/transition/src/project"
 import "github.com/tinne26/transition/src/game/level"
 import "github.com/tinne26/transition/src/game/level/block"
 import "github.com/tinne26/transition/src/game/u16"
@@ -499,42 +499,58 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level) error 
 	return nil
 }
 
-func (self *Player) Draw(canvas *ebiten.Image, logicalScale float64, area image.Rectangle) {
-	tx := (self.x - (float64(area.Min.X)))*logicalScale
-	ty := (self.y - (float64(area.Min.Y)))*logicalScale
+func (self *Player) Draw(projector *project.Projector) {
+	// Note: using the whole LogicalCanvas only for the player is wasteful,
+	//       and a system with multiple smoothly moving entities should use
+	//       raw triangles instead... but yeah, this is enough for my case.
+
+	tx := self.x - (float64(projector.CameraArea.Min.X))
+	ty := self.y - (float64(projector.CameraArea.Min.Y))
+	
+	// calculate fractional shift accounting for camera fractional shift
+	var shiftX, shiftY float64
+	tx, shiftX = math.Modf(tx)
+	ty, shiftY = math.Modf(ty)
+	leftShift := projector.CameraFractShiftX
+	upShift   := projector.CameraFractShiftY
+	if shiftX > 0 { tx += 1 ; leftShift += 1 - shiftX }
+	if shiftY > 0 { ty += 1 ; upShift   += 1 - shiftY }
+	if leftShift >= 1 { tx -= 1 ; leftShift -= 1.0 } // make leftShift and upShift be in [0, 1)
+	if upShift   >= 1 { ty -= 1 ; upShift   -= 1.0 }
 
 	// get current frame
 	frame := self.anim.GetCurrentFrame(self.reversingSelf)
 
-	// apply scaling
-	self.drawOpts.GeoM.Scale(logicalScale, logicalScale)
-
 	// apply orientation
 	if self.orientation == HorzDirLeft {
 		self.drawOpts.GeoM.Scale(-1, 1)
-		tx += playerFrameWidth*logicalScale
+		tx += playerFrameWidth
 	}
 
 	// apply death ticks
 	if self.ticksDead > 0 {
 		zoom := 1.0 + utils.Min(float64(self.ticksDead)/64.0, 2.0)
 		var alpha float32 = utils.Max(0, 1.0 - float32(self.ticksDead)/100.0)
-		w2, h2 := logicalScale*playerFrameWidth/2.0, logicalScale*playerFrameHeight/2.0
+		w2, h2 := playerFrameWidth/2.0, playerFrameHeight/2.0
 		self.drawOpts.GeoM.Translate(-w2, -h2)
 		self.drawOpts.GeoM.Scale(zoom, zoom)
 		self.drawOpts.GeoM.Translate(w2, h2)
 		self.drawOpts.ColorScale.ScaleAlpha(alpha)
 	}
 	self.drawOpts.GeoM.Translate(tx, ty)
-	canvas.DrawImage(frame, &self.drawOpts)
+	projector.LogicalCanvas.DrawImage(frame, &self.drawOpts)
 	
 	// draw detail part too (maximum hardcoding)
 	if self.orientation == HorzDirRight {
-		self.drawOpts.GeoM.Translate(-logicalScale*18, +logicalScale*12)
+		self.drawOpts.GeoM.Translate(-18, +12)
 	} else {
-		self.drawOpts.GeoM.Translate(logicalScale*(playerFrameWidth + 1), +logicalScale*12)
+		self.drawOpts.GeoM.Translate(playerFrameWidth + 1, +12)
 	}
-	canvas.DrawImage(self.detailAnim.GetCurrentFrame(self.reversingSelf), &self.drawOpts)
+	projector.LogicalCanvas.DrawImage(self.detailAnim.GetCurrentFrame(self.reversingSelf), &self.drawOpts)
+
+	// project from logical canvas to screen canvas
+	projector.ProjectLogical(leftShift, upShift)
+	projector.LogicalCanvas.Clear()
 	
 	// cleanup
 	self.drawOpts.GeoM.Reset()
@@ -545,6 +561,8 @@ func (self *Player) Draw(canvas *ebiten.Image, logicalScale float64, area image.
 
 func DrawUI(canvas *ebiten.Image) {
 	// ... hearts, transitionStage, powerConsumed
+	// TODO: not here, most info will be in game/state anyway.
+	//       ok, power consumed is actually relevant.
 }
 
 // ---- secondary public functions ----
@@ -641,7 +659,7 @@ func (self *Player) motionStateAllowsJump() bool {
 		return true
 	case MStFalling, MStJumping:
 		if self.allowLenientJumpOnFall() { return true }
-		return !self.reversingSelf && !self.spentWingJump && self.sinceNoContactFall > 18
+		return !self.reversingSelf && !self.spentWingJump && self.sinceNoContactFall > 14
 	default:
 		return false
 	}

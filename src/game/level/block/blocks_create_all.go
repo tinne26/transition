@@ -91,68 +91,68 @@ func CreateAll(filesys fs.FS) error {
 	
 	// --- load images and set up stuff manually ---
 	// TypePlatFlatHorzLong_A
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/platform_flat_horz_long_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/platform_flat_horz_long_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeBlock)
 	TypePlatFlatHorzLong_A = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/platform_flat_horz_long_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/platform_flat_horz_long_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeBlock)
 	TypePlatFlatHorzLong_B = registerBlockType(block)
 
 	// small horz
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/platform_flat_horz_small_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/platform_flat_horz_small_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeBlock)
 	TypePlatFlatHorzSmall_A = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/platform_flat_horz_small_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/platform_flat_horz_small_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeBlock)
 	TypePlatFlatHorzSmall_B = registerBlockType(block)
 
 	// TypePlatFlatVertLong_A
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/platform_flat_vert_long_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/platform_flat_vert_long_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeBlock)
 	TypePlatFlatVertLong_A = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/platform_flat_vert_short_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/platform_flat_vert_short_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeBlock)
 	TypePlatFlatVertShort_A = registerBlockType(block)
 
 	// TypePlatGroundBig_A
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/platform_ground_big_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/platform_ground_big_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeBlock)
 	TypePlatGroundBig_A = registerBlockType(block)
 
 	// TypePlatGroundMedium_A
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/platform_ground_medium_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/platform_ground_medium_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeBlock)
 	TypePlatGroundMedium_A = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/platform_ground_medium_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/platform_ground_medium_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeBlock)
 	TypePlatGroundMedium_B = registerBlockType(block)
 
 	// TypePlatGroundSquareSmall_A, TypePlatGroundSquareSmall_B
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/platform_ground_square_small_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/platform_ground_square_small_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeBlock)
 	TypePlatGroundSquareSmall_A = registerBlockType(block)
 	
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/platform_ground_square_small_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/platform_ground_square_small_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeBlock)
 	TypePlatGroundSquareSmall_B = registerBlockType(block)
 
 	// TypeStepSmall_A
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/step_small_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/step_small_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeThinStep)
 	TypeStepSmall_A = registerBlockType(block)
@@ -160,7 +160,7 @@ func CreateAll(filesys fs.FS) error {
 	TypeStepFloatSmall_A = registerBlockType(block)
 
 	// TypeStepSmall_B
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/step_small_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/step_small_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeThinStep)
 	TypeStepSmall_B = registerBlockType(block)
@@ -168,7 +168,7 @@ func CreateAll(filesys fs.FS) error {
 	TypeStepFloatSmall_B = registerBlockType(block)
 
 	// TypeStepSmall_C
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/step_small_C.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/step_small_C.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeThinStep)
 	TypeStepSmall_C = registerBlockType(block)
@@ -176,7 +176,7 @@ func CreateAll(filesys fs.FS) error {
 	TypeStepFloatSmall_C = registerBlockType(block)
 
 	// TypeStepSmall_D
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/step_small_D.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/step_small_D.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeThinStep)
 	TypeStepSmall_D = registerBlockType(block)
@@ -184,7 +184,7 @@ func CreateAll(filesys fs.FS) error {
 	TypeStepFloatSmall_D = registerBlockType(block)
 
 	// TypeStepLong_A, TypeStepFloatLong_A, TypeStepLeftLong_A, TypeStepRightLong_A
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/step_long_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/step_long_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeThinStep)
 	TypeStepLong_A = registerBlockType(block)
@@ -196,7 +196,7 @@ func CreateAll(filesys fs.FS) error {
 	TypeStepRightLong_A = registerBlockType(block)
 
 	// TypeStepLong_B and co.
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/step_long_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/step_long_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeThinStep)
 	TypeStepLong_B = registerBlockType(block)
@@ -208,7 +208,7 @@ func CreateAll(filesys fs.FS) error {
 	TypeStepRightLong_B = registerBlockType(block)
 
 	// dark floors
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/blocks/dark_floor.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/blocks/dark_floor.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeBlock)
 	block.Width, block.Height = 330, 100
@@ -223,155 +223,155 @@ func CreateAll(filesys fs.FS) error {
 	typeDarkFloorEndMarker = TypeDarkFloorWide
 
 	// ---- decorations ----
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/stone_inscription.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/stone_inscription.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorStoneInscr = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/right_sign.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/right_sign.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorSignGoRight = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/left_sign.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/left_sign.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorSignGoLeft = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/down_sign.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/down_sign.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorSignGoDown = registerBlockType(block)
 
 	// skeletooons
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/skeleton_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/skeleton_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorSkeleton_A = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/skull_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/skull_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorSkull_A = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/skull_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/skull_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorSkull_B = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/back_skeleton_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/back_skeleton_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorBackSkeleton_A = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/back_skull_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/back_skull_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorBackSkull_A = registerBlockType(block)
 
 	// weaaaaapoons
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/large_sword_absorbed.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/large_sword_absorbed.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorLargeSwordAbsorbed = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/large_sword_active.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/large_sword_active.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorLargeSwordActive = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/sword_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/sword_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorSword_A = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/sword_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/sword_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorSword_B = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/sword_C.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/sword_C.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorSword_C = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/sword_D.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/sword_D.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorSword_D = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/axe_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/axe_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorAxe_A = registerBlockType(block)
 	
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/axe_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/axe_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorAxe_B = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/spear_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/spear_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorSpear_A = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/spear_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/spear_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorSpear_B = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/basketball_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/basketball_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorBasketball_A = registerBlockType(block)
 	
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/back_axe_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/back_axe_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorBackAxe_A = registerBlockType(block)
 	
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/back_axe_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/back_axe_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorBackAxe_B = registerBlockType(block)
 		
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/back_spear_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/back_spear_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorBackSpear_A = registerBlockType(block)
 	
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/back_spear_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/back_spear_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorBackSpear_B = registerBlockType(block)
 	
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/back_sword_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/back_sword_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorBackSword_A = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/back_sword_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/back_sword_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeDecorBackSword_B = registerBlockType(block)
 
 	// ---- savepoints ----
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/savepoint_active_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/savepoint_active_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeSaveActive_A = registerBlockType(block)
 	
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/savepoint_active_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/savepoint_active_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeSaveActive_B = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/savepoint_inactive_A.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/savepoint_inactive_A.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeSaveInactive_A = registerBlockType(block)
 
-	img, err = utils.LoadFsImage(filesys, "assets/graphics/decorations/savepoint_inactive_B.png")
+	img, err = utils.LoadFsEbiImage(filesys, "assets/graphics/decorations/savepoint_inactive_B.png")
 	if err != nil { return err }
 	block = newBlockFromImg(img, SubtypeNone)
 	TypeSaveInactive_B = registerBlockType(block)

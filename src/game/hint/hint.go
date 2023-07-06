@@ -5,7 +5,7 @@ import "io/fs"
 import "github.com/hajimehoshi/ebiten/v2"
 
 import "github.com/tinne26/transition/src/utils"
-import "github.com/tinne26/transition/src/game/u16"
+import "github.com/tinne26/transition/src/project"
 
 type HintType uint8
 const (
@@ -25,13 +25,13 @@ var gfxReverse *ebiten.Image
 var gfxInteract *ebiten.Image
 func LoadHintGraphics(filesys fs.FS) error {
 	var err error
-	gfxDots, err = utils.LoadFsImage(filesys, "assets/graphics/ui/hints/talk.png")
+	gfxDots, err = utils.LoadFsEbiImage(filesys, "assets/graphics/ui/hints/talk.png")
 	if err != nil { return err }
-	gfxExclam, err = utils.LoadFsImage(filesys, "assets/graphics/ui/hints/exclam.png")
+	gfxExclam, err = utils.LoadFsEbiImage(filesys, "assets/graphics/ui/hints/exclam.png")
 	if err != nil { return err }
-	gfxReverse, err = utils.LoadFsImage(filesys, "assets/graphics/ui/hints/external_reverse.png")
+	gfxReverse, err = utils.LoadFsEbiImage(filesys, "assets/graphics/ui/hints/external_reverse.png")
 	if err != nil { return err }
-	gfxInteract, err = utils.LoadFsImage(filesys, "assets/graphics/ui/hints/interact.png")
+	gfxInteract, err = utils.LoadFsEbiImage(filesys, "assets/graphics/ui/hints/interact.png")
 	if err != nil { return err }
 	return nil
 }
@@ -46,14 +46,14 @@ func NewHint(hintType HintType, x, y uint16) Hint {
 }
 
 var hintOpts ebiten.DrawImageOptions
-func (self Hint) Draw(canvas *ebiten.Image, logicalScale float64, area u16.Rect, playerX, playerY uint16) {
+func (self Hint) Draw(projector *project.Projector, playerX, playerY uint16) {
 	x, y := self.x, self.y
 	if self.htype & TypeOnPlayer != 0 {
 		x, y = playerX + 6, playerY
 	}
 
 	// initial visibility check (more later)
-	if x >= area.Max.X || y >= area.Max.Y { return }
+	if x >= projector.CameraArea.Max.X + 1 || y >= projector.CameraArea.Max.Y + 1 { return }
 
 	// determine image
 	var img *ebiten.Image
@@ -70,14 +70,13 @@ func (self Hint) Draw(canvas *ebiten.Image, logicalScale float64, area u16.Rect,
 	bounds := img.Bounds()
 	w, h := uint16(bounds.Dx()), uint16(bounds.Dy())
 	y -= h
-	if x + w < area.Min.X { return }
-	if y + h < area.Min.Y { return }
+	if x + w < projector.CameraArea.Min.X { return }
+	if y + h < projector.CameraArea.Min.Y { return }
 
 	// apply translations and draw
-	hintOpts.GeoM.Scale(logicalScale, logicalScale)
-	tx := (float64(x) - float64(area.Min.X))*logicalScale
-	ty := (float64(y) - float64(area.Min.Y))*logicalScale
+	tx := float64(x) - float64(projector.CameraArea.Min.X)
+	ty := float64(y) - float64(projector.CameraArea.Min.Y)
 	hintOpts.GeoM.Translate(tx, ty)
-	canvas.DrawImage(img, &hintOpts)
+	projector.LogicalCanvas.DrawImage(img, &hintOpts)
 	hintOpts.GeoM.Reset()
 }

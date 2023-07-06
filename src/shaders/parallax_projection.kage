@@ -1,0 +1,74 @@
+package main
+
+var LogicalSize vec2 // e.g., 640x360
+var Scale float // projection scale
+var LogicalFractShift vec2 // values between [0, 1)
+var ActiveAreaOrigin vec2
+
+func Fragment(position vec4, _ vec2, maskingColor vec4) vec4 {
+	// get reference logical position
+	xy := position.xy - ActiveAreaOrigin
+	logicalPosition := xy/Scale + LogicalFractShift
+
+	// get interpolation points and colors
+	xInner, xOuter, xMixFactor := interpolationCoordsAndFactor(logicalPosition.x)
+	yInner, yOuter, yMixFactor := interpolationCoordsAndFactor(logicalPosition.y)
+	interpXIYIColor := imageColorUnsafeAtPixel(vec2(xInner, yInner))
+	interpXOYIColor := imageColorUnsafeAtPixel(vec2(xOuter, yInner))
+	interpXIYOColor := imageColorUnsafeAtPixel(vec2(xInner, yOuter))
+	interpXOYOColor := imageColorUnsafeAtPixel(vec2(xOuter, yOuter))
+
+	// apply color masking for parallaxing. this needs to be
+	// done here, not on the final color, as the operation is
+	// not commutative
+	interpXIYIColor = maskColors(interpXIYIColor, maskingColor)
+	interpXOYIColor = maskColors(interpXOYIColor, maskingColor)
+	interpXIYOColor = maskColors(interpXIYOColor, maskingColor)
+	interpXOYOColor = maskColors(interpXOYOColor, maskingColor)
+	
+	// interpolate colors and return result
+	yiColor := mix(interpXIYIColor, interpXOYIColor, xMixFactor)
+	yoColor := mix(interpXIYOColor, interpXOYOColor, xMixFactor)
+	return mix(yiColor, yoColor, yMixFactor)
+}
+
+func maskColors(mainColor vec4, maskingColor vec4) vec4 {
+	mixedColor := mixFirstOverSecond(maskingColor, mainColor)
+	return min(mixedColor, mainColor.a) // use min to prevent the masking color taking over empty areas
+}
+
+// See kage-desk/snippets for more context.
+func imageColorUnsafeAtPixel(pixelCoords vec2) vec4 {
+	sizeInPixels := imageSrcTextureSize()
+	offsetInTexels, _ := imageSrcRegionOnTexture()
+	adjustedTexelCoords := pixelCoords/sizeInPixels + offsetInTexels
+	return imageSrc0UnsafeAt(adjustedTexelCoords)
+}
+
+func mixFirstOverSecond(first vec4, second vec4) vec4 {
+	alpha := min(first.a + second.a*(1 - first.a), 1)
+	return vec4 (
+		min(first.r + second.r*(1 - first.a), alpha),
+		min(first.g + second.g*(1 - first.a), alpha),
+		min(first.b + second.b*(1 - first.a), alpha),
+		alpha,
+	)
+}
+
+// Notice: there's a generalized version of this function on projection.kage,
+//         this one uses always 0.5 for the border size.
+func interpolationCoordsAndFactor(baseCoord float) (innerCenterCoord, outerCenterCoord, mixFactor float) {
+	const interpBorderSize = 0.5 // this can't be changed in this version of the function
+	
+	// split coordinate into whole and fractional part
+	floorCoord, fractCoord := floor(baseCoord), fract(baseCoord)
+
+	// check where the fractional part falls and figure out with what other pixels we need to interpolate
+	if fractCoord > (1.0 - interpBorderSize) {
+		return floorCoord + 0.5, floorCoord + 1.5, (interpBorderSize - (1.0 - fractCoord))
+	} else if fractCoord < interpBorderSize {
+		return floorCoord + 0.5, floorCoord - 0.5, (interpBorderSize - fractCoord)
+	} else { // everything falls within the original coord
+		return floorCoord + 0.5, floorCoord + 0.5, 0.0
+	}
+}

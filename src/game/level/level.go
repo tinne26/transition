@@ -11,7 +11,7 @@ import "github.com/tinne26/transition/src/game/trigger"
 import "github.com/tinne26/transition/src/game/bckg"
 import "github.com/tinne26/transition/src/game/u16"
 import "github.com/tinne26/transition/src/utils"
-import "github.com/tinne26/transition/src/shaders"
+import "github.com/tinne26/transition/src/project"
 
 type Level struct {
 	limits u16.Rect
@@ -158,75 +158,65 @@ func setReuseVerticesPos(maxX, maxY float32) {
 }
 //var parallaxShaderOpts = ebiten.DrawTriangleShaderOptions{}
 
-func (self *Level) DrawBackPart(canvas *ebiten.Image, logicalScale float64, area u16.Rect, flags block.Flags) {
+func (self *Level) DrawBackPart(projector *project.Projector, flags block.Flags) {
 	// draw decoration blocks in the back
 	for _, decorBlock := range self.decorsBehindPlayer {
-		decorBlock.DrawInArea(canvas, logicalScale, area, flags)
+		decorBlock.DrawInArea(projector.LogicalCanvas, projector.CameraArea, flags)
 	}
 
 	// draw savepoints
 	for _, saveBlock := range self.savepoints {
-		saveBlock.DrawInArea(canvas, logicalScale, area, flags)
+		saveBlock.DrawInArea(projector.LogicalCanvas, projector.CameraArea, flags)
 	}
 
 	// draw main blocks
 	for _, levelBlock := range self.blocks {
-		levelBlock.DrawInArea(canvas, logicalScale, area, flags)
+		levelBlock.DrawInArea(projector.LogicalCanvas, projector.CameraArea, flags)
 	}
 }
 
 // fx and fy are the current central focus point
-func (self *Level) DrawParallaxBlocks(parallaxCanvasA, parallaxCanvasB, canvas *ebiten.Image, flags block.Flags, fx, fy float64, xShift, yShift float64) {
-	// parallaxed blocks and stuff
+func (self *Level) DrawParallaxBlocks(projector *project.Projector, flags block.Flags) {
 	const parallaxHorzFactor = 0.6
 	const parallaxVertFactor = 0.4
 
+	// slightly tricky calculations
+	cameraCenterX := projector.CameraArea.GetCenterXF64() + projector.CameraFractShiftX/2.0
+	cameraCenterY := projector.CameraArea.GetCenterYF64() + projector.CameraFractShiftY/2.0
+	parallaxCenterX := OX + (cameraCenterX - OX)*parallaxHorzFactor
+	parallaxCenterY := OY + (cameraCenterY - OY)*parallaxVertFactor
+	parallaxLeftX := parallaxCenterX - float64(projector.LogicalWidth)/2.0
+	parallaxTopY  := parallaxCenterY - float64(projector.LogicalHeight)/2.0
+	parallaxWholeLeftX, parallaxFractShiftX := math.Modf(parallaxLeftX)
+	parallaxWholeTopY , parallaxFractShiftY := math.Modf(parallaxTopY)
+	
+	// draw blocks within parallax area
 	var plxArea u16.Rect
-	fxWhole, fxShift := math.Modf(fx)
-	fyWhole, fyShift := math.Modf(fy)
-	ctrX := uint16(OX + (fxWhole - OX)*parallaxHorzFactor)
-	ctrY := uint16(OY + (fyWhole - OY)*parallaxVertFactor)
-	plxArea.Min.X = ctrX - 320
-	plxArea.Min.Y = ctrY - 180
-	plxArea.Max.X = plxArea.Min.X + 640
-	plxArea.Max.Y = plxArea.Min.Y + 360
+	plxArea.Min.X = uint16(parallaxWholeLeftX)
+	plxArea.Min.Y = uint16(parallaxWholeTopY)
+	plxArea.Max.X = plxArea.Min.X + uint16(projector.LogicalWidth)
+	plxArea.Max.Y = plxArea.Min.Y + uint16(projector.LogicalHeight)
 	for _, parallaxBlock := range self.parallaxBlocks {
-		parallaxBlock.DrawInArea(parallaxCanvasA, 1.0, plxArea, flags)
+		parallaxBlock.DrawInArea(projector.LogicalCanvas, plxArea, flags)
 	}
 	
-	// use shader to draw background color over parallaxed blocks
-	// get color to use
+	// get parallaxing masking color and project
 	const ParallaxAlpha = 0.76
-	pxcR, pxcG, pxcB, pxcA := utils.ToRGBAf32(self.backColor)
-	alphaFactor := ParallaxAlpha/pxcA
-	pxcR *= alphaFactor
-	pxcG *= alphaFactor
-	pxcB *= alphaFactor
-	for i := 0;  i < len(reuseVertices); i++ {
-		reuseVertices[i].ColorR = pxcR
-		reuseVertices[i].ColorG = pxcG
-		reuseVertices[i].ColorB = pxcB
-		reuseVertices[i].ColorA = ParallaxAlpha
-	}
-	canvasBounds := parallaxCanvasA.Bounds()
-	setReuseVerticesPos(float32(canvasBounds.Max.X), float32(canvasBounds.Max.Y))
-	opts := ebiten.DrawTrianglesShaderOptions{}
-	opts.Images[0] = parallaxCanvasA
-	parallaxCanvasB.DrawTrianglesShader(reuseVertices[:], []uint16{0, 1, 2, 2, 1, 3}, shaders.MaskedColoring, &opts)
-
-	// project the result
-	utils.ProjectLogicalCanvas(
-		parallaxCanvasB, canvas, 
-		(xShift + fxShift)*parallaxHorzFactor,
-		(yShift + fyShift)*parallaxVertFactor,
-	)
+	r, g, b, a := utils.ToRGBAf32(self.backColor)
+	alphaFactor := ParallaxAlpha/a
+	r *= alphaFactor
+	g *= alphaFactor
+	b *= alphaFactor
+	projector.ProjectParallax(parallaxFractShiftX, parallaxFractShiftY, r, g, b, ParallaxAlpha)
 }
 
-func (self *Level) DrawFrontPart(canvas *ebiten.Image, logicalScale float64, area u16.Rect, flags block.Flags) {
+func (self *Level) DrawFrontPart(projector *project.Projector, flags block.Flags) {
 	// draw decoration blocks in the front
 	for _, decorBlock := range self.decorsInFrontPlayer {
-		decorBlock.DrawInArea(canvas, logicalScale, area, flags)
+		decorBlock.DrawInArea(projector.LogicalCanvas, projector.CameraArea, flags)
 	}
+
+	projector.ProjectLogical(projector.CameraFractShiftX, projector.CameraFractShiftY)
 }
 
 // --- messing with blocks ---

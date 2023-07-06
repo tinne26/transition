@@ -77,25 +77,26 @@ func ProjectNearest(logicalCanvas, canvas *ebiten.Image) *ebiten.Image {
 	logicalAspectRatio := float64(logicalWidth)/float64(logicalHeight)
 	canvasAspectRatio  := float64(canvasWidth)/float64(canvasHeight)
 	var scalingFactor float64
-	var tx, ty int
+	var tx, ty int = canvasBounds.Min.X, canvasBounds.Min.Y
 
 	// compare aspect ratios	
 	if logicalAspectRatio == canvasAspectRatio {
 		// simple case, aspect ratios match, only scaling is necessary
 		scalingFactor = float64(canvasWidth)/float64(logicalWidth)
 		opts.GeoM.Scale(scalingFactor, scalingFactor)
+		opts.GeoM.Translate(float64(tx), float64(ty))
 		canvas.DrawImage(logicalCanvas, &opts)
 	} else {
 		// aspect ratios don't match, must also apply translation
 		if canvasAspectRatio < logicalAspectRatio {
 			// (we have excess canvas height)
 			adjustedCanvasHeight := int(float64(canvasWidth)/logicalAspectRatio)
-			ty = (canvasHeight - adjustedCanvasHeight)/2
+			ty += (canvasHeight - adjustedCanvasHeight)/2
 			canvasHeight = adjustedCanvasHeight
 		} else { // canvasAspectRatio > logicalAspectRatio
 			// (we have excess canvas width)
 			adjustedCanvasWidth := int(float64(canvasHeight)*logicalAspectRatio)
-			tx = (canvasWidth - adjustedCanvasWidth)/2
+			tx += (canvasWidth - adjustedCanvasWidth)/2
 			canvasWidth = adjustedCanvasWidth
 		}
 

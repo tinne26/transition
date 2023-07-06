@@ -1,0 +1,63 @@
+package main
+
+var LogicalSize vec2 // e.g., 640x360
+var Scale float // projection scale
+var LogicalFractShift vec2 // values between [0, 1)
+var ActiveAreaOrigin vec2
+
+func Fragment(position vec4, _ vec2, _ vec4) vec4 {
+	// get reference logical position
+	xy := position.xy - ActiveAreaOrigin
+	logicalPosition := xy/Scale + LogicalFractShift
+	//return imageColorUnsafeAtPixel(logicalPosition)
+	
+	// get interpolation points and colors
+	interpBorderSize := 0.5/Scale
+	xInner, xOuter, xMixFactor := interpolationCoordsAndFactor(logicalPosition.x, interpBorderSize)
+	yInner, yOuter, yMixFactor := interpolationCoordsAndFactor(logicalPosition.y, interpBorderSize)
+	interpXIYIColor := imageColorUnsafeAtPixel(vec2(xInner, yInner))
+	interpXOYIColor := imageColorUnsafeAtPixel(vec2(xOuter, yInner))
+	interpXIYOColor := imageColorUnsafeAtPixel(vec2(xInner, yOuter))
+	interpXOYOColor := imageColorUnsafeAtPixel(vec2(xOuter, yOuter))
+
+	// interpolate colors
+	yiColor := mix(interpXIYIColor, interpXOYIColor, xMixFactor)
+	yoColor := mix(interpXIYOColor, interpXOYOColor, xMixFactor)
+	return mix(yiColor, yoColor, yMixFactor)
+	
+	// minShift := min(LogicalFractShift.x, LogicalFractShift.y)
+	// interpFactor := whenGreaterThan(minShift, 0)
+	// return mix(imageColorUnsafeAtPixel(logicalPosition), interp, interpFactor)
+}
+
+// See kage-desk/snippets for more context.
+func imageColorUnsafeAtPixel(pixelCoords vec2) vec4 {
+	sizeInPixels := imageSrcTextureSize()
+	offsetInTexels, _ := imageSrcRegionOnTexture()
+	adjustedTexelCoords := pixelCoords/sizeInPixels + offsetInTexels
+	return imageSrc0UnsafeAt(adjustedTexelCoords)
+}
+
+func whenGreaterThan(a, b float) float {
+	return 1 - whenLessOrEqualThan(a, b)
+}
+
+func whenLessOrEqualThan(a, b float) float {
+	return step(a, b)
+}
+
+// Precondition: interpBorderSize must be in (~0.001, 0.5].
+func interpolationCoordsAndFactor(baseCoord float, interpBorderSize float) (innerCenterCoord, outerCenterCoord, mixFactor float) {
+	// split coordinate into whole and fractional part
+	floorCoord, fractCoord := floor(baseCoord), fract(baseCoord)
+
+	// check where the fractional part falls and figure out with what other pixels we need to interpolate
+	relBorderScale := 0.5/interpBorderSize
+	if fractCoord > (1.0 - interpBorderSize) {
+		return floorCoord + 0.5, floorCoord + 1.5, (interpBorderSize - (1.0 - fractCoord))*relBorderScale
+	} else if fractCoord < interpBorderSize {
+		return floorCoord + 0.5, floorCoord - 0.5, (interpBorderSize - fractCoord)*relBorderScale
+	} else { // everything falls within the original coord
+		return floorCoord + 0.5, floorCoord + 0.5, 0.0
+	}
+}

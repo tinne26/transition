@@ -16,11 +16,16 @@ import "github.com/tinne26/transition/src/game/trigger"
 import "github.com/tinne26/transition/src/game/hint"
 import "github.com/tinne26/transition/src/game/clr"
 import "github.com/tinne26/transition/src/game/sword"
+import "github.com/tinne26/transition/src/project"
 import "github.com/tinne26/transition/src/camera"
 import "github.com/tinne26/transition/src/audio"
 import "github.com/tinne26/transition/src/input"
 import "github.com/tinne26/transition/src/utils"
 import "github.com/tinne26/transition/src/text"
+//import "github.com/tinne26/transition/src/shaders"
+
+// TODO: while on main menu, return ebiten.Termination if going to "save and quit"
+//       (or maybe stay always saved? autosave on progress / change?)
 
 var _ ebiten.Game = (*Game)(nil)
 
@@ -38,13 +43,7 @@ type Game struct {
 	level *level.Level
 	camera *camera.Camera
 	background *bckg.Background
-	
-	logicalCanvas *ebiten.Image
-	logicalScale float64
-
-	parallaxCanvasA *ebiten.Image
-	parallaxCanvasB *ebiten.Image
-
+	projector *project.Projector
 	optsFancyCamera bool
 
 	longText []string
@@ -57,7 +56,7 @@ type Game struct {
 }
 
 const FadeTicks = 110
-const FullDarkFadeTicks = 20
+const FullDarkFadeTicks = 30
 
 func New(filesys fs.FS) (*Game, error) {
 	err := player.LoadAnimations(filesys)
@@ -65,6 +64,11 @@ func New(filesys fs.FS) (*Game, error) {
 	
 	// Edit this to change the entry point in a hardcoded manner
 	// level.EntryStartSaveLeft, level.EntryStartSaveRight, level.EntrySwordSaveCenter, ..
+	// or maybe have savestates already loaded and offer some hacking mechanism to
+	// load one such save. simply by passing --hacks to the program and allowing entering
+	// the hacks from the main menu. we will have like 6 levels or so, so it should
+	// be quick enough to operate. and I can stick to latest save anyway. so, rewrite my
+	// own save (local disk or web)
 	entryKey := level.EntryStartSaveLeft
 
 	lvl, entry := level.GetEntryPoint(entryKey)
@@ -75,12 +79,11 @@ func New(filesys fs.FS) (*Game, error) {
 		level: lvl,
 		camera: camera.New(),
 		background: bckg.New(),
-		parallaxCanvasA: ebiten.NewImage(640, 360),
-		parallaxCanvasB: ebiten.NewImage(640, 360),
+		projector: project.NewProjector(640, 360),
 		trigState: trigger.NewState(entryKey),
 		
 		// additional options and configuration
-		optsFancyCamera: true,
+		optsFancyCamera: true, // TODO: restore
 	}
 	game.player.SetIdleAt(entry.X, entry.Y)
 	game.camera.SetTarget(game.player)
@@ -108,15 +111,6 @@ func (self *Game) LayoutF(logicWinWidth, logicWinHeight float64) (float64, float
 	}
 	canvasWidth  := math.Ceil(logicWinWidth*scale)
 	canvasHeight := math.Ceil(logicWinHeight*scale)
-
-	widthFactor  := int(canvasWidth)/640
-	heightFactor := int(canvasHeight)/360
-	logicalScale := utils.Min(widthFactor, heightFactor)
-	if float64(logicalScale) != self.logicalScale {
-		self.logicalScale = float64(logicalScale)
-		self.logicalCanvas = ebiten.NewImage(641*logicalScale, 361*logicalScale)
-	}
-
 	return canvasWidth, canvasHeight
 }
 
@@ -172,7 +166,9 @@ func (self *Game) Update() error {
 				self.camera.SetTarget(self.player)
 				self.player.SetBlockedForInteraction(false)
 				self.player.NotifySolvedSwordChallenge()
-				self.level.ReplaceNearestBehindDecor(x, y, block.TypeDecorLargeSwordActive, block.TypeDecorLargeSwordAbsorbed)
+				preType  := block.TypeDecorLargeSwordActive
+				postType := block.TypeDecorLargeSwordAbsorbed
+				self.level.ReplaceNearestBehindDecor(x, y, preType, postType)
 				self.trigState.SwordChallengesSolved += 1
 			}
 			return nil
@@ -229,7 +225,7 @@ func (self *Game) transferPlayer(lvl *level.Level, position u16.Point) {
 	}
 	self.player.SetIdleAt(position.X, position.Y)
 	self.camera.Center()
-	self.fadeInTicksLeft = FadeTicks
+	self.fadeInTicksLeft = FadeTicks + FullDarkFadeTicks
 }
 
 func (self *Game) Draw(canvas *ebiten.Image) {
@@ -246,62 +242,68 @@ func (self *Game) Draw(canvas *ebiten.Image) {
 		canvas.Clear()
 		self.lastCanvasWidth  = w
 		self.lastCanvasHeight = h
-		debug.Tracef("New canvas size: %dx%d (logical scale x%.2f)\n", w, h, self.logicalScale)
+		debug.Tracef("New canvas size: %dx%d\n", w, h)
 	}
 
-	// clear logical canvas
-	self.logicalCanvas.Clear()
-
-	// prioritize some hacky screens
-	if self.longText != nil {
-		self.background.DrawInto(canvas)
-		utils.FillOverF32(canvas, 0, 0, 0, 0.5)
-		self.parallaxCanvasA.Clear()
-		text.CenterRawDraw(self.parallaxCanvasA, self.longText, clr.WingsText)
-		utils.ProjectNearest(self.parallaxCanvasA, canvas)
-		return // nothing else today
-	}
-
-	if self.swordChallenge != nil {
-		self.swordChallenge.Draw(self.logicalCanvas)
-	}
-
-	// draw current situation
+	// get camera position
 	playerRect := self.player.GetReferenceRect()
 	limits := self.level.GetLimits()
 	focusArea, xShift, yShift := self.camera.AreaInFocus(640, 360, limits.ToImageRect())
 	focusAreaU16 := u16.FromImageRect(focusArea)
+
+	// configure projector
+	self.projector.SetScreenCanvas(canvas)
+	self.projector.SetCameraArea(focusAreaU16, xShift, yShift)
+	self.projector.LogicalCanvas.Clear()
+
+	// prioritize some hacky screens
+	if self.longText != nil {
+		self.background.DrawInto(self.projector.ActiveCanvas)
+		utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, 0.5)
+		text.CenterRawDraw(self.projector.LogicalCanvas, self.longText, clr.WingsText)
+		utils.ProjectNearest(self.projector.LogicalCanvas, self.projector.ActiveCanvas)
+		return // nothing else today
+	}
+
+	// ---- draw current situation ----
+	// draw background
+	self.background.DrawInto(self.projector.ActiveCanvas)
+	
+	// draw parallaxed background
 	playerFlags := self.player.GetBlockFlags()
-	self.level.DrawBackPart(self.logicalCanvas, self.logicalScale, focusAreaU16, playerFlags)
+	self.level.DrawParallaxBlocks(self.projector, playerFlags)
+	self.projector.LogicalCanvas.Clear()
+
+	// draw sword challenge shaders if necessary
+	if self.swordChallenge != nil {
+		self.swordChallenge.Draw(self.projector.ActiveCanvas)
+	}
+
+	// draw level blocks and stuff behind player
+	self.level.DrawBackPart(self.projector, playerFlags)
 	if self.activeHint != nil {
-		self.activeHint.Draw(self.logicalCanvas, self.logicalScale, focusAreaU16, playerRect.Min.X, playerRect.Min.Y)
+		self.activeHint.Draw(self.projector, playerRect.Min.X, playerRect.Min.Y)
 		self.activeHint = nil
 	}
-	//self.camera.DebugDraw(self.logicalCanvas, self.logicalScale)
-	self.player.Draw(self.logicalCanvas, self.logicalScale, focusArea)
-	self.level.DrawFrontPart(self.logicalCanvas, self.logicalScale, focusAreaU16, playerFlags)
+	self.projector.ProjectLogical(self.projector.CameraFractShiftX, self.projector.CameraFractShiftY)
+	self.projector.LogicalCanvas.Clear()
 	
-	// projections and layering
-	self.background.DrawInto(canvas)
+	// draw player
+	self.player.Draw(self.projector)
 
-	self.parallaxCanvasA.Clear()
-	self.parallaxCanvasB.Clear()
-	fx := float64(focusArea.Min.X) + float64(focusArea.Max.X - focusArea.Min.X)/2.0
-	fy := float64(focusArea.Min.Y) + float64(focusArea.Max.Y - focusArea.Min.Y)/2.0
-	self.level.DrawParallaxBlocks(self.parallaxCanvasA, self.parallaxCanvasB, canvas, playerFlags, fx, fy, xShift, yShift)
-	activeCanvas := utils.ProjectLogicalCanvas(self.logicalCanvas, canvas, self.logicalScale*xShift, self.logicalScale*yShift)
+	// draw front blocks
+	self.level.DrawFrontPart(self.projector, playerFlags)
 
 	// draw text and UI
-	uiCanvas := self.parallaxCanvasA // \o_o/
-	uiCanvas.Clear()
 	if self.textMessage != nil {
-		text.Draw(uiCanvas, 320, 324, self.textMessage)
+		self.projector.LogicalCanvas.Clear()
+		text.Draw(self.projector.LogicalCanvas, 320, 324, self.textMessage)
+		utils.ProjectNearest(self.projector.LogicalCanvas, self.projector.ActiveCanvas)
 		self.textMessage = nil // dismiss, we use stuff only once cause we are wasteful
 	}
-	utils.ProjectNearest(uiCanvas, canvas)
 
 	// debug draws
-	debug.Draw(activeCanvas)
+	debug.Draw(self.projector.ActiveCanvas)
 
 	// fade in / out
 	if playerRect.Max.Y > limits.Max.Y {
@@ -316,11 +318,4 @@ func (self *Game) Draw(canvas *ebiten.Image) {
 		if alpha > 1.0 { alpha = 1.0 }
 		utils.FillOver(canvas, color.RGBA{0, 0, 0, uint8(alpha*255)})
 	}
-}
-
-func placeholderUpdate() error {
-	if ebiten.IsKeyPressed(ebiten.KeyEscape) {
-		return ebiten.Termination
-	}
-	return nil
 }

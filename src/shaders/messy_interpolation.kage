@@ -1,0 +1,30 @@
+
+func interpolationCoordsAndFactor(baseCoord float, interpBorderSize float) (innerCenterCoord, outerCenterCoord, mixFactor float) {
+	// split coordinate into whole and fractional part
+	floorCoord, fractCoord := floor(baseCoord), fract(baseCoord)
+
+	// messy version avoiding conditionals. I used the version with
+	// conditionals for clarity in most actual shaders, the gains
+	// are not big enough to justify this ugly chunk of code
+	relBorderScale := 0.5/interpBorderSize
+	var outerShift, mixShift float
+	positiveShiftFactor := whenGreaterThan(fractCoord, 1.0 - interpBorderSize)
+	outerShift += positiveShiftFactor*1.0
+	mixShift   += positiveShiftFactor*(interpBorderSize - (1.0 - fractCoord))*relBorderScale
+	negativeShiftFactor := whenLessThan(fractCoord, interpBorderSize)
+	outerShift += negativeShiftFactor*-1.0
+	mixShift   += negativeShiftFactor*(interpBorderSize - fractCoord)*relBorderScale
+	return floorCoord + 0.5, floorCoord + 0.5 + outerShift, mixShift
+}
+	
+func whenGreaterThan(a, b float) float {
+	return 1 - whenLessOrEqualThan(a, b)
+}
+
+func whenLessOrEqualThan(a, b float) float {
+	return step(a, b)
+}
+
+func whenLessThan(a, b float) float {
+	return 1 - step(b, a)
+}

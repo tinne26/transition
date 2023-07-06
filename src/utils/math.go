@@ -44,6 +44,10 @@ func FastCeilInt[F Float](x F) int {
 	return -int(-x)
 }
 
+func FastRound[F Float](x F) F {
+	return FastFloor(x + 0.5)
+}
+
 func Compare[Num Numeric](a, b Num) int {
 	if a == b { return 0 }
 	if a > b { return 1 }

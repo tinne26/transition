@@ -44,19 +44,18 @@ func (self *Block) ContactTest(headLeftX, headTopY uint16, flags Flags) ContactT
 	return blockType.Subtype.GetContactType(headLeftX, headTopY, bx, by, bw, bh, flags)
 }
 
-func (self *Block) DrawInArea(logicalCanvas *ebiten.Image, logicalScale float64, area u16.Rect, flags Flags) {
+func (self *Block) DrawInArea(logicalCanvas *ebiten.Image, area u16.Rect, flags Flags) {
 	// check if actually in visible area
-	if self.X >= area.Max.X || self.Y >= area.Max.Y { return }
+	if self.X >= area.Max.X + 1 || self.Y >= area.Max.Y + 1 { return }
 	blockType := self.Type()
 	if self.X + blockType.Width < area.Min.X { return }
 	if self.Y + blockType.Height < area.Min.Y { return }
 
 	// draw
-	blockDrawOpts.GeoM.Scale(logicalScale, logicalScale)
-	x := (float64(self.X) - float64(area.Min.X))*logicalScale
-	y := (float64(self.Y) - float64(area.Min.Y))*logicalScale
+	x := float64(self.X) - float64(area.Min.X)
+	y := float64(self.Y) - float64(area.Min.Y)
 	blockDrawOpts.GeoM.Translate(x, y)
-	blockType.Draw(logicalCanvas, flags, &blockDrawOpts, x, y, logicalScale)
+	blockType.Draw(logicalCanvas, flags, &blockDrawOpts, x, y)
 	blockDrawOpts.GeoM.Reset()
 }
 

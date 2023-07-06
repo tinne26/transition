@@ -19,6 +19,30 @@ func FromImageRect(imgRect image.Rectangle) Rect {
 	)
 }
 
+func (self Rect) Width() uint16 {
+	return self.Max.X - self.Min.X
+}
+
+func (self Rect) Height() uint16 {
+	return self.Max.Y - self.Min.Y
+}
+
+func (self Rect) GetCenterX() uint16 {
+	return self.Min.X + self.Width()/2.0
+}
+
+func (self Rect) GetCenterY() uint16 {
+	return self.Min.Y + self.Height()/2.0
+}
+
+func (self Rect) GetCenterXF64() float64 {
+	return float64(self.Min.X) + float64(self.Width())/2.0
+}
+
+func (self Rect) GetCenterYF64() float64 {
+	return float64(self.Min.Y) + float64(self.Height())/2.0
+}
+
 func (self Rect) PadEachFace(pad uint16) Rect {
 	return NewRect(self.Min.X - pad, self.Min.Y - pad, self.Max.X + pad, self.Max.Y + pad)
 }

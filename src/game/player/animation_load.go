@@ -29,8 +29,8 @@ var detailWingsSpritesheet *ebiten.Image
 func LoadAnimations(filesys fs.FS) error {
 	// load player's animation spritesheets
 	var err error
-	playerWingsSpritesheet, err = utils.LoadFsImage(filesys, "assets/graphics/creatures/player_wings.png")
-	//playerHornSpritesheet, err = utils.LoadFsImage(filesys, "assets/graphics/creatures/player_horns.png")
+	playerWingsSpritesheet, err = utils.LoadFsEbiImage(filesys, "assets/graphics/creatures/player_wings.png")
+	//playerHornSpritesheet, err = utils.LoadFsEbiImage(filesys, "assets/graphics/creatures/player_horns.png")
 	if err != nil { return err }
 	var t uint8 // for reused homogeneous tick values
 
@@ -94,7 +94,7 @@ func LoadAnimations(filesys fs.FS) error {
 	AnimInteract.AddFrame(playerFramePairAt(2, 5), 60)
 
 	// ---- wing and tail animations ----
-	detailWingsSpritesheet, err = utils.LoadFsImage(filesys, "assets/graphics/creatures/wing_anims.png")
+	detailWingsSpritesheet, err = utils.LoadFsEbiImage(filesys, "assets/graphics/creatures/wing_anims.png")
 	if err != nil { return err }
 
 	AnimDetailIdle = NewAnimation("AnimDetailIdle")
