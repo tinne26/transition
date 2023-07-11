@@ -6,6 +6,7 @@ import "image/color"
 import "github.com/hajimehoshi/ebiten/v2"
 
 import "github.com/tinne26/transition/src/game/level/block"
+import "github.com/tinne26/transition/src/game/level/collision"
 import "github.com/tinne26/transition/src/game/level/lvlkey"
 import "github.com/tinne26/transition/src/game/trigger"
 import "github.com/tinne26/transition/src/game/bckg"
@@ -13,18 +14,20 @@ import "github.com/tinne26/transition/src/game/u16"
 import "github.com/tinne26/transition/src/utils"
 import "github.com/tinne26/transition/src/project"
 
+// TODO: use the augmented tree for collisions and iteration instead of brute forcing
+
 type Level struct {
 	limits u16.Rect
 	
+	savepoints []block.Block
 	backColor color.RGBA // layer 0
 	backMaskColors []color.RGBA
 	backMasks *bckg.WeightedMaskList
-	parallaxBlocks []block.Block // layer 1
-
-	decorsBehindPlayer []block.Block
-	savepoints []block.Block
-	blocks []block.Block
-	decorsInFrontPlayer []block.Block
+	
+	parallaxBlocks *collision.AugmentedTree // layer 1
+	decorsBehindPlayer *collision.AugmentedTree
+	blocks *collision.AugmentedTree
+	decorsInFrontPlayer *collision.AugmentedTree
 	
 	triggers []trigger.Trigger
 }
@@ -36,6 +39,12 @@ func New(backColor color.RGBA, backMaskColors []color.RGBA, backMasks *bckg.Weig
 		backColor: backColor,
 		backMaskColors: backMaskColors,
 		backMasks: backMasks,
+
+		// augmented trees instead of slices
+		parallaxBlocks: collision.NewAugmentedTree(),
+		blocks: collision.NewAugmentedTree(),
+		decorsBehindPlayer: collision.NewAugmentedTree(),
+		decorsInFrontPlayer: collision.NewAugmentedTree(),
 	}
 }
 
@@ -74,24 +83,28 @@ func (self *Level) ComputeArea() u16.Rect {
 	}
 
 	// update area against parallax blocks
-	for _, block := range self.parallaxBlocks {
-		resultArea = updateArea(resultArea, &block)
-	}
+	self.parallaxBlocks.Each(func(blck block.Block) collision.SearchControl {
+		resultArea = updateArea(resultArea, &blck)
+		return collision.SearchContinue
+	})
 
 	// update area against behind decor blocks
-	for _, block := range self.decorsBehindPlayer {
-		resultArea = updateArea(resultArea, &block)
-	}
+	self.decorsBehindPlayer.Each(func(blck block.Block) collision.SearchControl {
+		resultArea = updateArea(resultArea, &blck)
+		return collision.SearchContinue
+	})
 
 	// update area against main blocks
-	for _, block := range self.blocks {
-		resultArea = updateArea(resultArea, &block)
-	}
+	self.blocks.Each(func(blck block.Block) collision.SearchControl {
+		resultArea = updateArea(resultArea, &blck)
+		return collision.SearchContinue
+	})
 
 	// update area against in front decor blocks
-	for _, block := range self.decorsInFrontPlayer {
-		resultArea = updateArea(resultArea, &block)
-	}
+	self.decorsInFrontPlayer.Each(func(blck block.Block) collision.SearchControl {
+		resultArea = updateArea(resultArea, &blck)
+		return collision.SearchContinue
+	})
 	
 	// return
 	if resultArea.Min.X > resultArea.Max.X {
@@ -109,26 +122,24 @@ func (self *Level) GetLimits() u16.Rect {
 	return self.limits
 }
 
-// TODO: do all adds in a sorted order directly?
-
 func (self *Level) AddParallaxBlock(block block.Block) {
-	self.parallaxBlocks = append(self.parallaxBlocks, block)
+	self.parallaxBlocks.Add(block)
 }
 
 // Mostly light gray decorations, though there are some black
 // one too, most notably the big ones which would fully occlude
 // the player otherwise.
 func (self *Level) AddBehindDecor(block block.Block) {
-	self.decorsBehindPlayer = append(self.decorsBehindPlayer, block)
+	self.decorsBehindPlayer.Add(block)
 }
 
 // Black decorations.
 func (self *Level) AddFrontDecor(block block.Block) {
-	self.decorsInFrontPlayer = append(self.decorsInFrontPlayer, block)
+	self.decorsInFrontPlayer.Add(block)
 }
 
 func (self *Level) AddBlock(block block.Block) {
-	self.blocks = append(self.blocks, block)
+	self.blocks.Add(block)
 }
 
 func (self *Level) AddTrigger(trig trigger.Trigger) {
@@ -159,10 +170,13 @@ func setReuseVerticesPos(maxX, maxY float32) {
 //var parallaxShaderOpts = ebiten.DrawTriangleShaderOptions{}
 
 func (self *Level) DrawBackPart(projector *project.Projector, flags block.Flags) {
+	minX, maxX := projector.CameraArea.Min.X, projector.CameraArea.Max.X + 1
+	
 	// draw decoration blocks in the back
-	for _, decorBlock := range self.decorsBehindPlayer {
+	self.decorsBehindPlayer.EachInXRange(minX, maxX, func(decorBlock block.Block) collision.SearchControl {
 		decorBlock.DrawInArea(projector.LogicalCanvas, projector.CameraArea, flags)
-	}
+		return collision.SearchContinue
+	})
 
 	// draw savepoints
 	for _, saveBlock := range self.savepoints {
@@ -170,9 +184,10 @@ func (self *Level) DrawBackPart(projector *project.Projector, flags block.Flags)
 	}
 
 	// draw main blocks
-	for _, levelBlock := range self.blocks {
+	self.blocks.EachInXRange(minX, maxX, func(levelBlock block.Block) collision.SearchControl {
 		levelBlock.DrawInArea(projector.LogicalCanvas, projector.CameraArea, flags)
-	}
+		return collision.SearchContinue
+	})
 }
 
 // fx and fy are the current central focus point
@@ -196,9 +211,10 @@ func (self *Level) DrawParallaxBlocks(projector *project.Projector, flags block.
 	plxArea.Min.Y = uint16(parallaxWholeTopY)
 	plxArea.Max.X = plxArea.Min.X + uint16(projector.LogicalWidth)
 	plxArea.Max.Y = plxArea.Min.Y + uint16(projector.LogicalHeight)
-	for _, parallaxBlock := range self.parallaxBlocks {
-		parallaxBlock.DrawInArea(projector.LogicalCanvas, plxArea, flags)
-	}
+	self.parallaxBlocks.EachInXRange(plxArea.Min.X, plxArea.Max.X + 1, func(blck block.Block) collision.SearchControl {
+		blck.DrawInArea(projector.LogicalCanvas, plxArea, flags)
+		return collision.SearchContinue
+	})
 	
 	// get parallaxing masking color and project
 	const ParallaxAlpha = 0.76
@@ -211,10 +227,13 @@ func (self *Level) DrawParallaxBlocks(projector *project.Projector, flags block.
 }
 
 func (self *Level) DrawFrontPart(projector *project.Projector, flags block.Flags) {
+	minX, maxX := projector.CameraArea.Min.X, projector.CameraArea.Max.X + 1
+
 	// draw decoration blocks in the front
-	for _, decorBlock := range self.decorsInFrontPlayer {
+	self.decorsInFrontPlayer.EachInXRange(minX, maxX, func(decorBlock block.Block) collision.SearchControl {
 		decorBlock.DrawInArea(projector.LogicalCanvas, projector.CameraArea, flags)
-	}
+		return collision.SearchContinue
+	})
 
 	projector.ProjectLogical(projector.CameraFractShiftX, projector.CameraFractShiftY)
 }
@@ -222,24 +241,26 @@ func (self *Level) DrawFrontPart(projector *project.Projector, flags block.Flags
 // --- messing with blocks ---
 
 func (self *Level) ReplaceNearestBehindDecor(x, y uint16, targetID, newID block.ID) {
-	closestIndex := -1
+	var closestDecor block.Block
 	closestDist  := 99999
 	
-	for i := 0; i < len(self.decorsBehindPlayer); i++ {
-		decor := self.decorsBehindPlayer[i]
-		if decor.Type().InternalIndex != targetID { continue }
+	self.decorsBehindPlayer.Each(func(decor block.Block) collision.SearchControl {
+		if decor.Type().InternalIndex != targetID { return collision.SearchContinue }
 		dist := utils.Abs(int(x) - int(decor.X)) + utils.Abs(int(y) - int(decor.Y))
 		if dist < closestDist {
-			closestDist = dist
-			closestIndex = i
+			closestDist  = dist
+			closestDecor = decor
 		}
-	}
+		return collision.SearchContinue
+	})
 
-	if closestIndex == -1 { panic("no close target found") }
-	closestDecor := self.decorsBehindPlayer[closestIndex]
+	if closestDist == 99999 { panic("no close target found") }
+	if !self.decorsBehindPlayer.Remove(closestDecor) {
+		panic("failed to remove decor")
+	}
 	newBlock := block.NewBlock(newID)
 	newBlock.X, newBlock.Y = closestDecor.X, closestDecor.Y
-	self.decorsBehindPlayer[closestIndex] = newBlock
+	self.decorsBehindPlayer.Add(newBlock)
 }
 
 func (self *Level) DisableSavepoints() {
@@ -293,14 +314,11 @@ func (self *Level) EnableSavepoint(saveKey lvlkey.EntryKey) {
 
 // --- iteration API ---
 
-// TODO: use interval tree instead of brute forcing, as the 
-//       player can call this multiple times per update
 func (self *Level) EachBlockInRange(rangeMin, rangeMax uint16, fn func(block.Block) IterationControl) {
-	for _, levelBlock := range self.blocks {
-		if levelBlock.X > rangeMax { continue }
-		if levelBlock.Right() < rangeMin { continue}
-		if fn(levelBlock) == IterationStop { return }
-	}
+	self.blocks.EachInXRange(rangeMin, rangeMax + 1, func(levelBlock block.Block) collision.SearchControl {
+		if fn(levelBlock) == IterationStop { return collision.SearchStop }
+		return collision.SearchContinue
+	})
 }
 
 // --- events API ---
