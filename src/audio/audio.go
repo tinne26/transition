@@ -23,6 +23,14 @@ func PlayJump() { SfxJump.Play() }
 func PlayDeath() { SfxDeath.Play() }
 
 func PlayStep() {
+	// hack to avoid glitchy repeated sounds.
+	// while this sounds like it should be fixed
+	// somewhere else, then you kinda have to be
+	// tracking semi-dependent states, so I find this
+	// fairly practical in the real world.
+	if stepTickBackoff > 0 { return }
+	stepTickBackoff = 5
+
 	r := rand.Float64()
 	if r < 0.33 {
 		SfxStep1.Play()

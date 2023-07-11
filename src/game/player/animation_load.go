@@ -72,12 +72,12 @@ func LoadAnimations(filesys fs.FS) error {
 	// running frames
 	t = 8
 	AnimRun = NewAnimation("AnimRun")
-	AnimRun.AddFrame(walk1, 11)
+	AnimRun.AddFrameWithSfx(walk1, 11, SfxKeyStep)
 	AnimRun.SetLoopStart(1)
 	AnimRun.AddFrame(playerFramePairAt(2, 0), t)
-	AnimRun.AddFrame(playerFramePairAt(2, 1), t)
+	AnimRun.AddFrameWithSfx(playerFramePairAt(2, 1), t, SfxKeyStep)
 	AnimRun.AddFrame(playerFramePairAt(2, 2), t)
-	AnimRun.AddFrame(playerFramePairAt(2, 3), t)
+	AnimRun.AddFrameWithSfx(playerFramePairAt(2, 3), t, SfxKeyStep)
 
 	// wall stick
 	AnimWallStick = NewAnimation("AnimWallStick")

@@ -156,19 +156,11 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level) error 
 		// apply new motion state triggers if relevant
 		if self.motionState == MStIdle {
 			self.setMotionState(MStMoving, AnimRun)
-			if self.sinceIdleStepSfx > 8 {
-				audio.PlayStep()
-				self.sinceIdleStepSfx = 0
-			}
 		}
 
 		// apply movement to X position
 		newX += horzDir.Sign()*self.getHorzMovSpeed()
 		self.orientation = horzDir
-	}
-
-	if self.anim == AnimRun && self.motionStateTicks > 8 && self.motionStateTicks % 16 == 7 {
-		audio.PlayStep()
 	}
 
 	// DEBUG ONLY (one pixel move)
@@ -300,12 +292,12 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level) error 
 				if self.motionState == MStFalling {
 					// TODO: consider fall damage or big impact reception.
 					// e.g. jump start y, or airMaxY vs current Y.
-					audio.PlayStep()
 					if self.x != newX {
 						self.setMotionState(MStMoving, AnimRun)
 						self.anim.SkipIntro()
 					} else {
 						self.setMotionState(MStIdle, AnimIdle)
+						audio.PlayStep()
 					}
 					yLimitReached = true
 					self.blockFlags &= ^block.FlagInertiaDown

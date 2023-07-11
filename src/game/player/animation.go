@@ -2,6 +2,15 @@ package player
 
 import "github.com/hajimehoshi/ebiten/v2"
 
+import "github.com/tinne26/transition/src/audio"
+
+type SfxKey uint8
+const (
+	SfxKeyNone SfxKey = iota
+	SfxKeyStep
+	SfxKeyJump
+)
+
 type FramePair struct {
 	Wings *ebiten.Image
 	Horns *ebiten.Image
@@ -12,6 +21,7 @@ type Animation struct {
 	frameIndex uint8
 	loopIndex uint8
 	frames []FramePair
+	sfxs []SfxKey
 	frameDurations []uint8
 	frameDurationLeft uint8
 }
@@ -25,7 +35,12 @@ func (self *Animation) Name() string {
 }
 
 func (self *Animation) AddFrame(framePair FramePair, frameTicks uint8) {
+	self.AddFrameWithSfx(framePair, frameTicks, SfxKeyNone)
+}
+
+func (self *Animation) AddFrameWithSfx(framePair FramePair, frameTicks uint8, sfxKey SfxKey) {
 	self.frames = append(self.frames, framePair)
+	self.sfxs = append(self.sfxs, sfxKey)
 	if frameTicks == 0 { panic("can't add frame with duration of 0 ticks") }
 	if len(self.frameDurations) == 0 { self.frameDurationLeft = frameTicks }
 	self.frameDurations = append(self.frameDurations, frameTicks)
@@ -48,11 +63,13 @@ func (self *Animation) InPreLoopPhase() bool {
 func (self *Animation) SkipIntro() {
 	self.frameIndex = self.loopIndex
 	self.frameDurationLeft = self.frameDurations[self.loopIndex]
+	self.playSfx()
 }
 
 func (self *Animation) Rewind() {
 	self.frameIndex = 0
 	self.frameDurationLeft = self.frameDurations[0]
+	self.playSfx()
 }
 
 func (self *Animation) Update() {
@@ -63,10 +80,25 @@ func (self *Animation) Update() {
 		} else {
 			self.frameIndex += 1
 		}
+		self.playSfx()
 		self.frameDurationLeft = self.frameDurations[self.frameIndex]
 	}
 }
 
 func (self *Animation) SetLoopStart(index uint8) {
 	self.loopIndex = index
+}
+
+func (self *Animation) playSfx() {
+	sfxKey := self.sfxs[self.frameIndex]
+	switch sfxKey {
+	case SfxKeyNone:
+		// nothing
+	case SfxKeyStep:
+		audio.PlayStep()
+	case SfxKeyJump:
+		audio.PlayJump()
+	default:
+		panic(sfxKey)
+	}
 }

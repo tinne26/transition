@@ -131,15 +131,19 @@ func (self *Game) Update() error {
 	}
 	self.forcefulFadeOutLevel = 0
 
-	// update each relevant game element
+	// update game core systems
 	var err error
+	err = audio.Update()
+	if err != nil { return err }
 	err = input.Update()
 	if err != nil { return err }
 
+	// some common fullscreen shortcuts
 	if input.Trigger(input.ActionFullscreen) || input.Trigger(input.ActionFullscreen2) {
 		ebiten.SetFullscreen(!ebiten.IsFullscreen())
 	}
 
+	// update game elements
 	err = self.background.Update()
 	if err != nil { return err }
 
