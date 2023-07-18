@@ -15,6 +15,7 @@ var AnimTightBack2 *Animation
 var AnimWalk *Animation
 var AnimRun *Animation
 var AnimInAir *Animation // falling, double jumps, dash... everything as I didn't have time
+var AnimFall *Animation
 var AnimWallStick *Animation
 var AnimInteract *Animation
 
@@ -85,9 +86,18 @@ func LoadAnimations(filesys fs.FS) error {
 
 	// in air frames
 	AnimInAir = NewAnimation("AnimInAir")
-	AnimInAir.AddFrame(playerFramePairAt(3, 0), 4)
-	AnimInAir.AddFrame(playerFramePairAt(3, 1), 4)
-	AnimInAir.AddFrame(playerFramePairAt(3, 2), 5)
+	air1, air2 := playerFramePairAt(3, 0), playerFramePairAt(3, 1)
+	air3, air4 := playerFramePairAt(3, 2), playerFramePairAt(3, 3)
+	AnimInAir.AddFrame(air1, 6)
+	AnimInAir.AddFrame(air2, 6)
+	AnimInAir.AddFrame(air3, 6)
+	AnimInAir.AddFrame(air4, 60)
+	AnimInAir.SetLoopStart(3)
+
+	AnimFall = NewAnimation("AnimFall")
+	AnimFall.AddFrame(air3, 18)
+	AnimFall.AddFrame(air2, 4)
+	AnimFall.AddFrame(air3, 18)
 
 	// interaction
 	AnimInteract = NewAnimation("AnimInteract")

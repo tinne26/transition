@@ -1,5 +1,6 @@
 package sword
 
+import "time"
 import "math"
 
 import "github.com/hajimehoshi/ebiten/v2"
@@ -36,6 +37,7 @@ type Challenge struct {
 	protectionAlpha float64
 	angleShift float64
 	consecutiveHold uint32
+	holdBgmFadedIn bool
 
 	holdMessage *text.Message
 	tapMessage *text.Message
@@ -61,7 +63,7 @@ func NewChallenge(x, y uint16) *Challenge {
 
 
 const MaxExpansion = 1.3
-func (self *Challenge) Update() error {
+func (self *Challenge) Update(soundscape *audio.Soundscape) error {
 	const FlashSpeed = 0.18
 
 	// flashing
@@ -86,8 +88,14 @@ func (self *Challenge) Update() error {
 		}
 	}
 
+	// safety fade out stuff
+	if self.holdBgmFadedIn && self.consecutiveHold == 0 {
+		self.fadeOutHoldBgm(soundscape)
+	}
+
 	// already over case
 	if self.hp == 0 {
+		if self.holdBgmFadedIn { self.fadeOutHoldBgm(soundscape) }
 		self.expansion -= 0.02
 		if self.expansion < 0 { self.expansion = 0 }
 		return nil
@@ -121,9 +129,10 @@ func (self *Challenge) Update() error {
 	if self.protection > 1.0 { self.protection = 1.0 }
 
 	// main progress logic
+	preConsecutiveHold := self.consecutiveHold
 	if self.isProtectionActive {
 		if acceptInput && input.Trigger(input.ActionOutReverse) {
-			audio.PlaySwordTap()
+			soundscape.PlaySFX(audio.SfxSwordTap)
 			self.protection -= 0.06
 			if self.protection <= 0.0 {
 				self.isProtectionActive = false
@@ -142,6 +151,7 @@ func (self *Challenge) Update() error {
 			if input.Pressed(input.ActionOutReverse) {
 				self.consecutiveHold += 1
 				if self.consecutiveHold < 10 {
+					if !self.holdBgmFadedIn { self.fadeInHoldBgm(soundscape) }
 					self.hp -= 0.0002
 				} else {
 					self.hp -= 0.001
@@ -149,12 +159,17 @@ func (self *Challenge) Update() error {
 				if self.hp < 0.0 {
 					self.flashChange = FlashSpeed
 					self.hp = 0.0
-					audio.PlaySwordEnd()
+					soundscape.PlaySFX(audio.SfxSwordEnd)
 				}
-			} else {
-				self.consecutiveHold = 0
 			}
-		} 
+		}
+	}
+	
+	if self.consecutiveHold <= preConsecutiveHold {
+		self.consecutiveHold = 0
+		if self.holdBgmFadedIn {
+			self.fadeOutHoldBgm(soundscape)
+		}
 	}
 
 	// update protection alpha
@@ -206,6 +221,18 @@ func (self *Challenge) Draw(logicalCanvas *ebiten.Image) {
 	self.opts.Uniforms["ProtectionLevel"] = min(self.protection, self.expansion)
 	self.opts.Uniforms["FlashAlpha"] = self.flashAlpha
 	logicalCanvas.DrawTrianglesShader(self.vertices[:], []uint16{0, 1, 2, 1, 3, 2}, shaders.SwordChallenge, &self.opts)
+}
+
+func (self *Challenge) fadeOutHoldBgm(soundscape *audio.Soundscape) {
+	self.holdBgmFadedIn = false
+	fader := soundscape.AutomationPanel().GetResource(audio.ResKeyChallengeFader).(*audio.Fader)
+	fader.Transition(0.0, 0, audio.TimeDurationToSamples(time.Millisecond*200))
+}
+
+func (self *Challenge) fadeInHoldBgm(soundscape *audio.Soundscape) {
+	self.holdBgmFadedIn = true
+	fader := soundscape.AutomationPanel().GetResource(audio.ResKeyChallengeFader).(*audio.Fader)
+	fader.Transition(1.0, 0, audio.TimeDurationToSamples(time.Millisecond*200))
 }
 
 func min(a, b float64) float64 {

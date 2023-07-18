@@ -4,7 +4,7 @@ import "github.com/tinne26/transition/src/game/u16"
 import "github.com/tinne26/transition/src/game/level/lvlkey"
 
 const (
-	EntryStartSaveLeft lvlkey.EntryKey = iota
+	EntryStartSaveLeft lvlkey.EntryKey = iota + lvlkey.Undefined + 1
 	EntryStartSaveRight
 	EntryStartTransRight
 	EntrySwordTransLeft

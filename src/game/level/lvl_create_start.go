@@ -3,9 +3,10 @@ package level
 import "image/color"
 
 import "github.com/tinne26/transition/src/game/level/block"
+import "github.com/tinne26/transition/src/game/state"
+import "github.com/tinne26/transition/src/game/trigger"
 import "github.com/tinne26/transition/src/game/bckg"
 import "github.com/tinne26/transition/src/game/clr"
-import "github.com/tinne26/transition/src/game/trigger"
 import "github.com/tinne26/transition/src/game/hint"
 import "github.com/tinne26/transition/src/game/u16"
 import "github.com/tinne26/transition/src/text"
@@ -76,8 +77,8 @@ func CreateStartLevel() *Level {
 	step = blocks.Add(block.TypeStepLeftLong_A).RightOf(step, -1).ShiftHeightUp().MoveUp(2)
 	
 	// mini jump
-	step = blocks.Add(block.TypeStepRightLong_B).RightOf(step, Hop*4)
-	step = blocks.Add(block.TypeStepSmall_A).RightOf(step, -1).ShiftHeightDown().MoveDown(2)
+	jmp2 := blocks.Add(block.TypeStepRightLong_B).RightOf(step, Hop*4)
+	step = blocks.Add(block.TypeStepSmall_A).RightOf(jmp2, -1).ShiftHeightDown().MoveDown(2)
 	blk3 := blocks.Add(block.TypePlatGroundSquareSmall_A).RightOf(step, -3).MoveDown(2 + int(step.Height()))
 	plat := blocks.Add(block.TypePlatFlatHorzSmall_A).RightOf(blk3, 0).MoveRight(Hop*4).MoveDown(Hop*2)
 	plat = blocks.Add(block.TypePlatFlatHorzSmall_B).RightOf(plat, 0).MoveRight(Hop*5).MoveDown(Hop*2)
@@ -210,36 +211,24 @@ func CreateStartLevel() *Level {
 	level.AddTrigger(
 		trigger.NewShowTip(
 			u16.NewRect(base.X - Hop*5, base.Y - Hop*5, base.Right() + Hop*5, base.Bottom() + Hop*5),
-			trigger.TipHowToMove,
+			u16.NewRect(base.X - Hop*8, base.Y - Hop*8, base.Right() + Hop*8, base.Bottom() + Hop*8),
 			text.NewSkippableMsg1(
 				"USE " + string(text.KeyD) + " TO MOVE RIGHT, " + string(text.KeyA) + " TO MOVE LEFT",
 				clr.WingsText,
 			),
-			trigger.TipDismissedOnExit,
+			state.SwitchTipMove,
 		),
 	)
 
 	level.AddTrigger(
 		trigger.NewShowTip(
-			u16.NewRect(jmp1.Right() - Hop*3, jmp1.Y - Hop*8, jmp1.Right() + Hop*6, jmp1.Bottom() + Hop*8),
-			trigger.TipHowToJump,
+			u16.NewRect(jmp1.Right() - Hop*3, jmp1.Y - Hop*8, jmp1.Right() + Hop*6, jmp1.Y),
+			u16.NewRect(jmp2.Right() + Hop*3, jmp2.Y - Hop*8, jmp2.Right() + Hop*8, jmp2.Bottom() + Hop*0),
 			text.NewSkippableMsg1(
 				"HOLD " + string(text.KeyK) + " TO JUMP. PRESS AGAIN IN THE AIR TO USE YOUR WINGS",
 				clr.WingsText,
 			),
-			trigger.TipPersistent,
-		),
-	)
-
-	level.AddTrigger(
-		trigger.NewShowTip(
-			u16.NewRect(blk3.X - Hop*1, blk3.Y - Hop*8, blk3.Right() + Hop*5, blk3.Bottom() + Hop*2),
-			trigger.TipMoreJumps,
-			text.NewSkippableMsg1(
-				"NOT BAD. KEEP GOING!",
-				clr.WingsText,
-			),
-			trigger.TipDismissedOnExit,
+			state.SwitchTipJump,
 		),
 	)
 

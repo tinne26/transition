@@ -60,19 +60,19 @@ func (self *Animation) InPreLoopPhase() bool {
 	return self.frameIndex < self.loopIndex
 }
 
-func (self *Animation) SkipIntro() {
+func (self *Animation) SkipIntro(soundscape *audio.Soundscape) {
 	self.frameIndex = self.loopIndex
 	self.frameDurationLeft = self.frameDurations[self.loopIndex]
-	self.playSfx()
+	self.playSfx(soundscape)
 }
 
-func (self *Animation) Rewind() {
+func (self *Animation) Rewind(soundscape *audio.Soundscape) {
 	self.frameIndex = 0
 	self.frameDurationLeft = self.frameDurations[0]
-	self.playSfx()
+	self.playSfx(soundscape)
 }
 
-func (self *Animation) Update() {
+func (self *Animation) Update(soundscape *audio.Soundscape) {
 	self.frameDurationLeft -= 1
 	if self.frameDurationLeft == 0 {
 		if self.frameIndex == uint8(len(self.frames) - 1) {
@@ -80,7 +80,7 @@ func (self *Animation) Update() {
 		} else {
 			self.frameIndex += 1
 		}
-		self.playSfx()
+		self.playSfx(soundscape)
 		self.frameDurationLeft = self.frameDurations[self.frameIndex]
 	}
 }
@@ -89,15 +89,15 @@ func (self *Animation) SetLoopStart(index uint8) {
 	self.loopIndex = index
 }
 
-func (self *Animation) playSfx() {
+func (self *Animation) playSfx(soundscape *audio.Soundscape) {
 	sfxKey := self.sfxs[self.frameIndex]
 	switch sfxKey {
 	case SfxKeyNone:
 		// nothing
 	case SfxKeyStep:
-		audio.PlayStep()
+		soundscape.PlaySFX(audio.SfxStep)
 	case SfxKeyJump:
-		audio.PlayJump()
+		soundscape.PlaySFX(audio.SfxJump)
 	default:
 		panic(sfxKey)
 	}

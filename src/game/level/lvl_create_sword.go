@@ -3,6 +3,7 @@ package level
 import "image/color"
 
 import "github.com/tinne26/transition/src/game/level/block"
+import "github.com/tinne26/transition/src/game/state"
 import "github.com/tinne26/transition/src/game/bckg"
 import "github.com/tinne26/transition/src/game/clr"
 import "github.com/tinne26/transition/src/game/trigger"
@@ -129,13 +130,13 @@ func CreateSwordLevel() *Level {
 	level.AddTrigger(
 		trigger.NewShowTip(
 			u16.NewRect(leftArea.Right() - Hop*12, leftArea.Y - Hop*1, leftArea.Right(), leftArea.Bottom()),
-			trigger.TipHowToWallStick,
+			u16.NewRect(centerArea.X + Hop*2, centerArea.Y - Hop*8, centerArea.Right(), centerArea.Y),
 			text.NewSkippableMsg2(
 				"YOU CAN BRIEFLY ATTACH TO WALLS WHILE JUMPING, BUT...",
 				"YOU MAY SLIP IF YOUR DOWNWARD MOMENTUM IS TOO HIGH",
 				clr.WingsText,
 			),
-			trigger.TipPersistent,
+			state.SwitchTipWallStick,
 		),
 	)
 
@@ -146,8 +147,9 @@ func CreateSwordLevel() *Level {
 		swordArea.Right() - Hop*2, swordArea.Y,
 	)
 	hintContents := hint.NewHint(hint.TypeInteract, swordArea.CenterX(), swordArea.Y - 74)
+	challenge := sword.NewChallenge(swordArea.CenterX() - 1, swordArea.Y - 57)
 	level.AddTrigger(
-		trigger.NewSwordChallenge(swordTriggerRect, hintContents, sword.NewChallenge(swordArea.CenterX() - 1, swordArea.Y - 57)),
+		trigger.NewSwordChallenge(swordTriggerRect, hintContents, challenge, state.SwitchSwordChallenge1),
 	)
 
 	// savepoints and transfers
