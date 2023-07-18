@@ -49,6 +49,7 @@ func (self *Input) Update() error {
 	}
 	
 	// update input
+	if self.blocked { return nil }
 	if newGpCount > 0 {
 		currGamepadID = self.gamepadIds[newGpCount - 1]
 		for action, ticks := range self.pressedTicks {

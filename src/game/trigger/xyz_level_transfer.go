@@ -1,7 +1,9 @@
 package trigger
 
-import "github.com/tinne26/transition/src/game/u16"
+import "github.com/tinne26/transition/src/audio"
+import "github.com/tinne26/transition/src/game/state"
 import "github.com/tinne26/transition/src/game/level/lvlkey"
+import "github.com/tinne26/transition/src/game/u16"
 
 var _ Trigger = (*TrigLevelTransfer)(nil)
 
@@ -40,7 +42,7 @@ func NewLevelTransfer(x, y uint16, dir TransferDir, entryKey lvlkey.EntryKey) Tr
 	}
 }
 
-func (self *TrigLevelTransfer) Update(playerRect u16.Rect, state *State) (any, error) {
+func (self *TrigLevelTransfer) Update(playerRect u16.Rect, _ *state.State, _ *audio.Soundscape) (any, error) {
 	if !self.area.Overlap(playerRect) { return nil, nil }
 
 	switch self.dir {
@@ -55,6 +57,6 @@ func (self *TrigLevelTransfer) Update(playerRect u16.Rect, state *State) (any, e
 	}
 }
 
-func (self *TrigLevelTransfer) OnLevelEnter(state *State) {}
-func (self *TrigLevelTransfer) OnLevelExit(state *State) {}
-func (self *TrigLevelTransfer) OnDeath(state *State) {}
+func (self *TrigLevelTransfer) OnLevelEnter(_ *state.State) {}
+func (self *TrigLevelTransfer) OnLevelExit(_ *state.State) {}
+func (self *TrigLevelTransfer) OnDeath(_ *state.State) {}

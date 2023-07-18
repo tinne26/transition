@@ -41,19 +41,22 @@ type Camera struct {
 // Notice that you must still set the x and y targets before
 // being able to call Update() and other methods without panicking.
 func New() *Camera {
-	const DefaultBaseSpeed = 2.1 // should be around the player's base speed
-	const DefaultMaxSpeed = 14.0
-	const DefaultMaxDistFactor = 0.6
+	const DefaultHorzSpeed = 2.1 // should be around the player's base speed
+	const DefaultVertSpeed = 1.4
+	const DefaultMaxHorzSpeed = 14.0
+	const DefaultMaxVertSpeed = 20.0
+	const DefaultMaxHorzDistFactor = 0.6
+	const DefaultMaxVertDistFactor = 0.4
 	const DefaultMaxCarrotShift = 42.0
 	const DefaultCarrotShiftSpeed = 0.4
 
 	return &Camera{
-		baseSpeedX: DefaultBaseSpeed,
-		maxSpeedX: DefaultMaxSpeed,
-		maxDistX: 640*DefaultMaxDistFactor,
-		baseSpeedY: DefaultBaseSpeed,
-		maxSpeedY: DefaultMaxSpeed,
-		maxDistY: 360*DefaultMaxDistFactor,
+		baseSpeedX: DefaultHorzSpeed,
+		maxSpeedX: DefaultMaxHorzSpeed,
+		maxDistX: 640*DefaultMaxHorzDistFactor,
+		baseSpeedY: DefaultVertSpeed,
+		maxSpeedY: DefaultMaxVertSpeed,
+		maxDistY: 360*DefaultMaxVertDistFactor,
 
 		maxCarrotAbsShift: DefaultMaxCarrotShift,
 		xCarrotShiftSpeed: DefaultCarrotShiftSpeed,

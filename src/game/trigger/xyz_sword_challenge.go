@@ -1,68 +1,49 @@
 package trigger
 
-import "image/color"
+import "time"
 
 import "github.com/tinne26/transition/src/game/u16"
+import "github.com/tinne26/transition/src/game/state"
 import "github.com/tinne26/transition/src/game/hint"
 import "github.com/tinne26/transition/src/game/sword"
 import "github.com/tinne26/transition/src/input"
-import "github.com/tinne26/transition/src/text"
 import "github.com/tinne26/transition/src/audio"
-
-var white color.RGBA = color.RGBA{255, 255, 255, 255}
-var apology = []*text.Message{
-	text.NewSkippableMsg2(
-		"SORRY ABOUT IT, THIS IS WHERE YOU WOULD ACTUALLY GET",
-		"YOUR MAIN POWER AND THE GAME WOULD START PROPERLY, BUT...", white),
-	text.NewSkippableMsg1("LIFE HAPPENED", white),
-	text.NewSkippableMsg2(
-		"FEEL FREE TO ROAM AROUND IF YOU WANT AND ENJOY THE SCENERY,",
-		"BUT THERE'S NOTHING MORE TO SEE IN TERMS OF CONTENT", white),
-}
 
 var _ Trigger = (*TrigSwordChallenge)(nil)
 
 type TrigSwordChallenge struct {
-	done bool
+	doneSwitch state.Switch
 	area u16.Rect
 	ihint hint.Hint
 	challenge *sword.Challenge
-	apologyIndex int
 }
 
-func NewSwordChallenge(area u16.Rect, ihint hint.Hint, challenge *sword.Challenge) Trigger {
+func NewSwordChallenge(area u16.Rect, ihint hint.Hint, challenge *sword.Challenge, doneSwitch state.Switch) Trigger {
 	return &TrigSwordChallenge{
 		area: area,
 		ihint: ihint,
 		challenge: challenge,
+		doneSwitch: doneSwitch,
 	}
 }
 
-func (self *TrigSwordChallenge) Update(playerRect u16.Rect, state *State) (any, error) {
+func (self *TrigSwordChallenge) Update(playerRect u16.Rect, gameState *state.State, soundscape *audio.Soundscape) (any, error) {
 	if !self.area.Overlap(playerRect) { return nil, nil }
 	
-	if !self.done {
+	if !gameState.Switches[self.doneSwitch] {
 		if input.Trigger(input.ActionInteract) {
-			audio.PlayInteract()
-			self.done = true
+			soundscape.PlaySFX(audio.SfxInteract)
+			soundscape.Crossfade(audio.BgmChallenge, time.Millisecond*1800, time.Millisecond*900, time.Millisecond*2700)
+			gameState.Switches[self.doneSwitch] = true
+			gameState.TransitionStage += 1 // TODO: this is most definitely too early
 			return self.challenge, nil
 		}
 		return self.ihint, nil
 	}
 
-	if state.SwordChallengesSolved > 0 {
-		if input.Trigger(input.ActionInteract) {
-			audio.PlayInteract()
-			self.apologyIndex += 1
-		}
-		if self.apologyIndex < len(apology) {
-			return apology[self.apologyIndex], nil
-		}
-	}
-
 	return nil, nil
 }
 
-func (self *TrigSwordChallenge) OnLevelEnter(state *State) {}
-func (self *TrigSwordChallenge) OnLevelExit(state *State) {}
-func (self *TrigSwordChallenge) OnDeath(state *State) {}
+func (self *TrigSwordChallenge) OnLevelEnter(_ *state.State) {}
+func (self *TrigSwordChallenge) OnLevelExit(_ *state.State) {}
+func (self *TrigSwordChallenge) OnDeath(_ *state.State) {}

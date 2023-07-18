@@ -1,97 +1,50 @@
 package trigger
 
-import "github.com/tinne26/transition/src/game/u16"
 import "github.com/tinne26/transition/src/input"
-import "github.com/tinne26/transition/src/text"
 import "github.com/tinne26/transition/src/audio"
-
-// TODO: this is overly complex and unnecessary. have two areas, allow them
-//       to overlap, remove tip on second area.
-
-type TipID uint8
-const (
-	TipNone TipID = iota // used as a special value
-	TipHowToMove
-	TipHowToJump
-	TipMoreJumps
-	TipHowToCloseTips
-	TipHowToWallStick
-	TipHowToReverseAndDash // TODO: this may be a whole text fragment being shown as the last tutorial,
-	                       //       also including how to open menu and stuff.
-)
+import "github.com/tinne26/transition/src/text"
+import "github.com/tinne26/transition/src/game/state"
+import "github.com/tinne26/transition/src/game/u16"
 
 var _ Trigger = (*TrigShowTip)(nil)
 
 type TrigShowTip struct {
-	id TipID
 	area u16.Rect
+	clearedArea u16.Rect
 	msg *text.Message
-	wasActive bool
-	persist TipPersistency
-	cleared bool // we could know anyway, but this will be faster
+	clearedSwitch state.Switch
 }
 
-type TipPersistency bool
-const (
-	TipDismissedOnExit TipPersistency = false
-	TipPersistent TipPersistency = true
-)
-
-// Can pass FlagNone
-func NewShowTip(area u16.Rect, tipID TipID, msg *text.Message, persist TipPersistency) Trigger {
+// The "clearedArea" for tips can overlap "area".
+func NewShowTip(area, clearedArea u16.Rect, msg *text.Message, clearedSwitch state.Switch) Trigger {
 	return &TrigShowTip{
-		id: tipID,
 		area: area,
+		clearedArea: clearedArea,
 		msg: msg,
-		persist: persist,
+		clearedSwitch: clearedSwitch,
 	}
 }
 
-func (self *TrigShowTip) Update(playerRect u16.Rect, state *State) (any, error) {
-	if self.cleared { return nil, nil }
+func (self *TrigShowTip) Update(playerRect u16.Rect, gameState *state.State, soundscape *audio.Soundscape) (any, error) {
+	if gameState.Switches[self.clearedSwitch] { return nil, nil }
 	if !self.area.Overlap(playerRect) {
-		if self.wasActive && self.persist == TipDismissedOnExit {
-			state.MarkTipCleared(self.id)
-			self.cleared = true
+		if self.clearedArea.Overlap(playerRect) {
+			gameState.Switches[self.clearedSwitch] = true
 		}
-		return nil, nil
-	}
-	self.wasActive = true
-
-	// return if the trigger is "removed"
-	if state.IsTipMarkedCleared(self.id) {
-		self.cleared = true
 		return nil, nil
 	}
 
 	// "remove" the trigger if using the right key
 	if input.Trigger(input.ActionInteract) {
-		audio.PlayInteract()
-		state.MarkTipCleared(self.id)
-		self.cleared = true
-		state.AnyTipClosed = true
+		soundscape.PlaySFX(audio.SfxInteract)
+		gameState.Switches[self.clearedSwitch] = true
 		return nil, nil
 	}
-
-	// remove last visited trigger with the interaction
-	// with this new trigger
-	if state.LatestTipID != self.id {
-		state.MarkTipCleared(state.LatestTipID)
-	}
-	state.LatestTipID = self.id
 
 	return self.msg, nil
 }
 
-func (self *TrigShowTip) OnLevelEnter(state *State) { self.wasActive = false }
-func (self *TrigShowTip) OnLevelExit(state *State) {
-	self.wasActive = false
-	if !self.cleared {
-		state.MarkTipCleared(self.id)
-		self.cleared = true
-	}
-}
-func (self *TrigShowTip) OnDeath(state *State) {
-	self.wasActive = false
-}
+func (self *TrigShowTip) OnLevelEnter(_ *state.State) {}
+func (self *TrigShowTip) OnLevelExit(_ *state.State) {}
+func (self *TrigShowTip) OnDeath(_ *state.State) {}
 

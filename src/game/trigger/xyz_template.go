@@ -1,5 +1,7 @@
 package trigger
 
+import "github.com/tinne26/transition/src/audio"
+import "github.com/tinne26/transition/src/game/state"
 import "github.com/tinne26/transition/src/game/u16"
 
 var _ Trigger = (*TrigTemplate)(nil)
@@ -15,7 +17,7 @@ func NewTemplate(area u16.Rect) Trigger {
 	}
 }
 
-func (self *TrigTemplate) Update(playerRect u16.Rect, state *State) (any, error) {
+func (self *TrigTemplate) Update(playerRect u16.Rect, _ *state.State, _ *audio.Soundscape) (any, error) {
 	if !self.area.Overlap(playerRect) { return nil, nil }
 	
 	// ...
@@ -23,6 +25,6 @@ func (self *TrigTemplate) Update(playerRect u16.Rect, state *State) (any, error)
 	return nil, nil
 }
 
-func (self *TrigTemplate) OnLevelEnter(state *State) {}
-func (self *TrigTemplate) OnLevelExit(state *State) {}
-func (self *TrigTemplate) OnDeath(state *State) {}
+func (self *TrigTemplate) OnLevelEnter(_ *state.State) {}
+func (self *TrigTemplate) OnLevelExit(_ *state.State) {}
+func (self *TrigTemplate) OnDeath(_ *state.State) {}

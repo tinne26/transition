@@ -1,5 +1,6 @@
 package game
 
+import "time"
 import "io/fs"
 import "math"
 import "image/color"
@@ -13,6 +14,7 @@ import "github.com/tinne26/transition/src/game/level/block"
 import "github.com/tinne26/transition/src/game/bckg"
 import "github.com/tinne26/transition/src/game/u16"
 import "github.com/tinne26/transition/src/game/trigger"
+import "github.com/tinne26/transition/src/game/state"
 import "github.com/tinne26/transition/src/game/hint"
 import "github.com/tinne26/transition/src/game/clr"
 import "github.com/tinne26/transition/src/game/sword"
@@ -45,12 +47,14 @@ type Game struct {
 	background *bckg.Background
 	projector *project.Projector
 	optsFancyCamera bool
+	playerInteractionBlockCountdown uint8
 
 	longText []string
 	textMessage *text.Message
 	activeHint *hint.Hint
 	levelTriggers []trigger.Trigger
-	trigState *trigger.State
+	gameState *state.State
+	soundscape *audio.Soundscape
 	swordChallenge *sword.Challenge
 	pendingResponse any
 }
@@ -61,6 +65,10 @@ const FullDarkFadeTicks = 30
 func New(filesys fs.FS) (*Game, error) {
 	err := player.LoadAnimations(filesys)
 	if err != nil { return nil, err }
+
+	soundscape := audio.NewSoundscape()
+	err = audio.Initialize(soundscape, filesys)
+	if err != nil { return nil, err }
 	
 	// Edit this to change the entry point in a hardcoded manner
 	// level.EntryStartSaveLeft, level.EntryStartSaveRight, level.EntrySwordSaveCenter, ..
@@ -69,7 +77,7 @@ func New(filesys fs.FS) (*Game, error) {
 	// the hacks from the main menu. we will have like 6 levels or so, so it should
 	// be quick enough to operate. and I can stick to latest save anyway. so, rewrite my
 	// own save (local disk or web)
-	entryKey := level.EntryStartSaveLeft
+	entryKey := level.EntrySwordSaveCenter // level.EntryStartSaveLeft
 
 	lvl, entry := level.GetEntryPoint(entryKey)
 	lvl.EnableSavepoint(entryKey)
@@ -80,12 +88,13 @@ func New(filesys fs.FS) (*Game, error) {
 		camera: camera.New(),
 		background: bckg.New(),
 		projector: project.NewProjector(640, 360),
-		trigState: trigger.NewState(entryKey),
+		gameState: state.New(),
+		soundscape: soundscape,
 		
 		// additional options and configuration
 		optsFancyCamera: true, // TODO: restore
 	}
-	game.player.SetIdleAt(entry.X, entry.Y)
+	game.player.SetIdleAt(entry.X, entry.Y, game.soundscape)
 	game.camera.SetTarget(game.player)
 	game.camera.Center()
 	game.camera.SetFancy(game.optsFancyCamera)
@@ -95,6 +104,7 @@ func New(filesys fs.FS) (*Game, error) {
 	game.levelTriggers = game.level.GetTriggers()
 
 	input.SetBlocked(true)
+	game.soundscape.FadeIn(audio.BgmBackground, 0, time.Millisecond*1230, 0)
 	
 	return &game, nil
 }
@@ -125,7 +135,7 @@ func (self *Game) Update() error {
 	// transition update
 	if self.fadeInTicksLeft > 0 {
 		self.fadeInTicksLeft -= 1
-		if self.fadeInTicksLeft == 0 {
+		if self.fadeInTicksLeft <= 80 {
 			input.SetBlocked(false)
 		}
 	}
@@ -133,7 +143,7 @@ func (self *Game) Update() error {
 
 	// update game core systems
 	var err error
-	err = audio.Update()
+	err = self.soundscape.Update()
 	if err != nil { return err }
 	err = input.Update()
 	if err != nil { return err }
@@ -143,13 +153,23 @@ func (self *Game) Update() error {
 		ebiten.SetFullscreen(!ebiten.IsFullscreen())
 	}
 
+	// interaction hack countdown
+	if self.playerInteractionBlockCountdown > 0 {
+		self.playerInteractionBlockCountdown -= 1
+		// TODO: many problems with this. interact while flying. some bug where I can't interact back
+		//       because the previous save switch is still blocked until I leave the level. etc. bad.
+		if self.playerInteractionBlockCountdown == 0 {
+			self.player.SetBlockedForInteraction(false, self.soundscape)
+		}
+	}
+
 	// update game elements
 	err = self.background.Update()
 	if err != nil { return err }
 
 	if self.longText != nil { // hacky little part
 		if input.Trigger(input.ActionInteract) {
-			audio.PlayInteract()
+			self.soundscape.PlaySFX(audio.SfxInteract)
 			self.longText = nil
 			self.level.GetBackMasks().Add(bckg.MaskEbi, 0.2)
 		}
@@ -163,17 +183,18 @@ func (self *Game) Update() error {
 				self.textMessage = swordText
 			}
 	
-			self.swordChallenge.Update()
+			self.swordChallenge.Update(self.soundscape)
 			if self.swordChallenge.IsOver() {
+				self.soundscape.FadeIn(audio.BgmBackground, time.Millisecond*3000, time.Millisecond*4000, time.Millisecond*12000)
 				x, y := self.swordChallenge.X, self.swordChallenge.Y
 				self.swordChallenge = nil
 				self.camera.SetTarget(self.player)
-				self.player.SetBlockedForInteraction(false)
+				self.player.SetBlockedForInteraction(false, self.soundscape)
 				self.player.NotifySolvedSwordChallenge()
 				preType  := block.TypeDecorLargeSwordActive
 				postType := block.TypeDecorLargeSwordAbsorbed
 				self.level.ReplaceNearestBehindDecor(x, y, preType, postType)
-				self.trigState.SwordChallengesSolved += 1
+				self.gameState.TransitionStage += 1
 			}
 			return nil
 		}
@@ -185,7 +206,7 @@ func (self *Game) Update() error {
 		return nil
 	}
 
-	err = self.player.Update(self.camera, self.level)
+	err = self.player.Update(self.camera, self.level, self.soundscape)
 	if err != nil { return err }
 	
 	err = self.camera.Update()
@@ -193,7 +214,7 @@ func (self *Game) Update() error {
 
 	playerRect := self.player.GetReferenceRect()
 	for _, trigger := range self.levelTriggers {
-		response, err := trigger.Update(playerRect, self.trigState)
+		response, err := trigger.Update(playerRect, self.gameState, self.soundscape)
 		if err != nil { return err }
 		if response != nil {
 			self.HandleTriggerResponse(response)
@@ -203,8 +224,9 @@ func (self *Game) Update() error {
 	// detect player death from falling
 	lim := self.level.GetLimits()
 	if playerRect.Min.Y > lim.Max.Y + 200 {
-		audio.PlayDeath()
-		for _, trigger := range self.levelTriggers { trigger.OnDeath(self.trigState) }
+		input.SetBlocked(true)
+		self.soundscape.PlaySFX(audio.SfxDeath)
+		for _, trigger := range self.levelTriggers { trigger.OnDeath(self.gameState) }
 		self.respawnPlayer()
 		self.camera.Center()
 	}
@@ -213,21 +235,21 @@ func (self *Game) Update() error {
 }
 
 func (self *Game) respawnPlayer() {
-	lvl, pt := level.GetEntryPoint(self.trigState.LastSaveEntryKey)
+	lvl, pt := level.GetEntryPoint(self.gameState.LastSaveEntryKey)
 	self.transferPlayer(lvl, pt)
 }
 
 func (self *Game) transferPlayer(lvl *level.Level, position u16.Point) {
 	if lvl != self.level {
-		for _, trigger := range self.levelTriggers { trigger.OnLevelExit(self.trigState) }
-		for _, trigger := range self.levelTriggers { trigger.OnLevelEnter(self.trigState) }
+		for _, trigger := range self.levelTriggers { trigger.OnLevelExit(self.gameState) }
+		for _, trigger := range self.levelTriggers { trigger.OnLevelEnter(self.gameState) }
 		self.level = lvl
 		self.background.SetColor(lvl.GetBackColor())
 		self.background.SetMaskColors(lvl.GetBackMaskColors())
 		self.background.SetMasks(lvl.GetBackMasks())
 		self.levelTriggers = lvl.GetTriggers()
 	}
-	self.player.SetIdleAt(position.X, position.Y)
+	self.player.SetIdleAt(position.X, position.Y, self.soundscape)
 	self.camera.Center()
 	self.fadeInTicksLeft = FadeTicks + FullDarkFadeTicks
 }

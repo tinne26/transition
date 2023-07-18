@@ -11,7 +11,6 @@ import "github.com/tinne26/transition/src/utils"
 import "github.com/tinne26/transition/src/game"
 import "github.com/tinne26/transition/src/game/level"
 import "github.com/tinne26/transition/src/game/hint"
-import "github.com/tinne26/transition/src/audio"
 
 // Windows compilation:
 // > go build -o game.exe -trimpath -ldflags "-w -s -H windowsgui" -tags "ebitenginesinglethread" main.go
@@ -47,9 +46,6 @@ func main() {
 	if err != nil { debug.Fatal(err) }
 	err = hint.LoadHintGraphics(filesys)
 	if err != nil { debug.Fatal(err) }
-	err = audio.LoadSFX(filesys)
-	if err != nil { debug.Fatal(err) }
-	audio.PlayBGM(filesys) // hack
 
 	// set window icon
 	ico16, err := utils.LoadFsImage(filesys, "assets/ico/16x16.png")
