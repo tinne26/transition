@@ -16,12 +16,16 @@ func (self *Game) HandleTriggerResponse(response any) {
 	case lvlkey.EntryKey:
 		// changing savepoint key
 		key := typedResponse
-		lvl, _ := level.GetEntryPoint(self.gameState.LastSaveEntryKey)
-		lvl.DisableSavepoints()
-		self.gameState.LastSaveEntryKey = key
-		lvl, _ = level.GetEntryPoint(key)
+		if self.prevEntryKey != lvlkey.Undefined {
+			lvl, _ := level.GetEntryPoint(self.prevEntryKey)
+			lvl.DisableSavepoints()
+		} else {
+			lvl, _ := level.GetEntryPoint(key)
+			lvl.DisableSavepoints()
+		}
+		lvl, _ := level.GetEntryPoint(key)
 		lvl.EnableSavepoint(key)
-		
+		self.prevEntryKey = key
 		self.player.SetBlockedForInteraction(true, self.soundscape)
 		self.playerInteractionBlockCountdown = 12
 	case trigger.Transfer:

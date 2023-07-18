@@ -17,8 +17,9 @@ func QuickNewBlock(id block.ID) *block.Block {
 }
 
 func NewSwitchSaveTrigger(saveBlock *block.Block, entry lvlkey.EntryKey) trigger.Trigger {
-	return trigger.NewSwitchSave(
-		u16.NewRect(saveBlock.X - Hop*1, saveBlock.Y, saveBlock.Right() + Hop*1, saveBlock.Bottom()),
+	y := saveBlock.Bottom() + SaveOffsetY
+	return trigger.NewSwitchSave(		
+		u16.NewRect(saveBlock.X - Hop*1, y - 1, saveBlock.Right() + Hop*1, y + 1),
 		entry,
 		hint.NewHint(hint.TypeReverse, saveBlock.CenterX() - 3, saveBlock.Y - 2),
 	)

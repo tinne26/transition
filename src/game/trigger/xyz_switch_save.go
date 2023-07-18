@@ -26,7 +26,10 @@ func NewSwitchSave(area u16.Rect, key lvlkey.EntryKey, trigHint hint.Hint) Trigg
 
 func (self *TrigSwitchSave) Update(playerRect u16.Rect, gameState *state.State, soundscape *audio.Soundscape) (any, error) {
 	if !self.area.Overlap(playerRect) { return nil, nil }
-	if self.active { return nil, nil } // can't interact with it while already set as our savepoint
+	if self.active && gameState.LastSaveEntryKey == self.key {
+		return nil, nil // can't interact with it while already set as our savepoint
+	}
+	self.active = false
 
 	// hack to set this switch as the first one if no
 	// save trigger has been set yet

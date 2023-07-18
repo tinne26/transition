@@ -11,6 +11,7 @@ import "github.com/tinne26/transition/src/debug"
 import "github.com/tinne26/transition/src/game/player"
 import "github.com/tinne26/transition/src/game/level"
 import "github.com/tinne26/transition/src/game/level/block"
+import "github.com/tinne26/transition/src/game/level/lvlkey"
 import "github.com/tinne26/transition/src/game/bckg"
 import "github.com/tinne26/transition/src/game/u16"
 import "github.com/tinne26/transition/src/game/trigger"
@@ -48,6 +49,7 @@ type Game struct {
 	projector *project.Projector
 	optsFancyCamera bool
 	playerInteractionBlockCountdown uint8
+	prevEntryKey lvlkey.EntryKey
 
 	longText []string
 	textMessage *text.Message
@@ -77,7 +79,7 @@ func New(filesys fs.FS) (*Game, error) {
 	// the hacks from the main menu. we will have like 6 levels or so, so it should
 	// be quick enough to operate. and I can stick to latest save anyway. so, rewrite my
 	// own save (local disk or web)
-	entryKey := level.EntrySwordSaveCenter // level.EntryStartSaveLeft
+	entryKey := level.EntryStartSaveLeft
 
 	lvl, entry := level.GetEntryPoint(entryKey)
 	lvl.EnableSavepoint(entryKey)
@@ -90,9 +92,8 @@ func New(filesys fs.FS) (*Game, error) {
 		projector: project.NewProjector(640, 360),
 		gameState: state.New(),
 		soundscape: soundscape,
-		
-		// additional options and configuration
-		optsFancyCamera: true, // TODO: restore
+		prevEntryKey: lvlkey.Undefined,
+		optsFancyCamera: true, // I keep it here mostly for testing
 	}
 	game.player.SetIdleAt(entry.X, entry.Y, game.soundscape)
 	game.camera.SetTarget(game.player)
@@ -156,8 +157,6 @@ func (self *Game) Update() error {
 	// interaction hack countdown
 	if self.playerInteractionBlockCountdown > 0 {
 		self.playerInteractionBlockCountdown -= 1
-		// TODO: many problems with this. interact while flying. some bug where I can't interact back
-		//       because the previous save switch is still blocked until I leave the level. etc. bad.
 		if self.playerInteractionBlockCountdown == 0 {
 			self.player.SetBlockedForInteraction(false, self.soundscape)
 		}
