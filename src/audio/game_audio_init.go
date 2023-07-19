@@ -47,7 +47,7 @@ func Initialize(soundscape *Soundscape, filesys fs.FS) error {
 	sfx.SetVolumeCorrectorFactor(0.64)
 	SfxSwordEnd = soundscape.RegisterSFX(sfx)
 	
-	sfx, err = loadOggMultiSFX(filesys, "assets/audio/sfx/sword_tap*.ogg", '1', '5')
+	sfx, err = loadOggMultiSFX(filesys, "assets/audio/sfx/sword_tap*.ogg", '1', '4')
 	if err != nil { return err }
 	sfx.SetVolumeCorrectorFactor(0.5)
 	SfxSwordTap = soundscape.RegisterSFX(sfx)
