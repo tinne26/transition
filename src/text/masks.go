@@ -371,6 +371,15 @@ var pkgBitmaps = map[rune]*ebiten.Image{
 		0,
 		0,
 	}),
+	';': utils.RawAlphaMaskToWhiteMask(2, []byte{
+		0, 0,
+		0, 0,
+		0, 1,
+		0, 0,
+		0, 1,
+		0, 1,
+		1, 0,
+	}),
 	'!': utils.RawAlphaMaskToWhiteMask(1, []byte{
 		0,
 		1,

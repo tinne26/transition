@@ -141,10 +141,14 @@ func (self *Camera) Update() error {
 	xdist, ydist = targetX - self.x, targetY - self.y
 	var xmove float64
 	if self.xtargetDir != 0 || self.mustMatchTarget {
-		xmove = easeMove(xdist, self.maxDistX, self.maxSpeedX, self.baseSpeedX)
+		baseSpeedX := self.baseSpeedX
+		if self.mustMatchTarget { baseSpeedX *= 0.3 }
+		xmove = easeMove(xdist, self.maxDistX, self.maxSpeedX, baseSpeedX)
 		if self.xtargetDir == 0 { xmove /= 1.2 }
 	}
-	ymove := easeMove(ydist, self.maxDistY, self.maxSpeedY, self.baseSpeedY)
+	baseSpeedY := self.baseSpeedY
+	if self.mustMatchTarget { baseSpeedY *= 0.2 }
+	ymove := easeMove(ydist, self.maxDistY, self.maxSpeedY, baseSpeedY)
 
 	// clip overshoot when base speed is too high
 	if xdist >= 0 {
@@ -273,13 +277,13 @@ func (self *Camera) AreaInFocus(width, height int, areaLimits image.Rectangle) (
 	return image.Rect(int(oxWhole), int(oyWhole), int(oxWhole) + width, int(oyWhole) + height), oxFract, oyFract
 }
 
-func (self *Camera) DebugDraw(target *ebiten.Image, scaleFactor float64) {
+func (self *Camera) DebugDraw(target *ebiten.Image) {
 	bounds := target.Bounds()
 	w, h := bounds.Dx(), bounds.Dy()
 
 	var x int
 	x = w/2
 	target.SubImage(image.Rect(x, 0, x + 1, h)).(*ebiten.Image).Fill(color.RGBA{255, 0, 0, 255})
-	x = w/2 + int(self.xCarrotShift)*int(scaleFactor)
+	x = w/2 + int(self.xCarrotShift)
 	target.SubImage(image.Rect(x, 0, x + 1, h)).(*ebiten.Image).Fill(color.RGBA{0, 0, 255, 255})
 }

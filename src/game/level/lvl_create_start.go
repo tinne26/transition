@@ -257,6 +257,26 @@ func CreateStartLevel() *Level {
 			}),
 	)
 
+	level.AddTrigger(
+		trigger.NewAutoText(
+			u16.NewRect(svp1.X - Hop*2, svp1.Y, svp1.X + Hop*2, svp1.Bottom()),
+			[]string{
+				"TO MY SURPRISE, IT HAD BEEN A QUIET JOURNEY;",
+				"UNEVENTFUL, BORING ALMOST.",
+				"",
+				"AS I ENTERED THE OUTER RING OF LETHIEN'S DOMAINS, THOUGH,",
+				"MY FRAME OF MIND SHIFTED ALONGSIDE THE SCENERY.",
+				"",
+				"I STARTED TO GROW RESTLESS...",
+				"",
+				"WISHING FOR THE PREVIOUS QUIETNESS TO REMAIN BY MY SIDE,",
+				"EVEN IF ONLY FOR A COUPLE MORE STEPS.",
+				"",
+				"[PRESS " + string(text.KeyI) + " TO CONTINUE]",
+			},
+		),
+	)
+
 	transfX := flr1.Right() - Hop*3
 	transfY := flr1.Y
 	level.AddTrigger(trigger.NewLevelTransfer(transfX, transfY, trigger.RightTransfer, EntrySwordTransLeft))

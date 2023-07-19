@@ -26,8 +26,7 @@ func (self *Game) HandleTriggerResponse(response any) {
 		lvl, _ := level.GetEntryPoint(key)
 		lvl.EnableSavepoint(key)
 		self.prevEntryKey = key
-		self.player.SetBlockedForInteraction(true, self.soundscape)
-		self.playerInteractionBlockCountdown = 12
+		self.player.UnblockInteractionAfter(16)
 	case trigger.Transfer:
 		self.fadeInTicksLeft = FadeTicks
 		lvl, pt := level.GetEntryPoint(typedResponse.Key)
@@ -38,7 +37,7 @@ func (self *Game) HandleTriggerResponse(response any) {
 		self.forcefulFadeOutLevel = typedResponse
 	case *sword.Challenge:
 		challenge := typedResponse
-		self.player.SetBlockedForInteraction(true, self.soundscape)
+		self.player.SetBlockedForInteraction()
 		self.swordChallenge = challenge
 		self.camera.SetStaticTarget(float64(challenge.X), float64(challenge.Y))
 		self.camera.RequireMustMatch()

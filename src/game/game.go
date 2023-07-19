@@ -3,7 +3,7 @@ package game
 import "time"
 import "io/fs"
 import "math"
-import "image/color"
+import "strings"
 
 import "github.com/hajimehoshi/ebiten/v2"
 
@@ -25,7 +25,6 @@ import "github.com/tinne26/transition/src/audio"
 import "github.com/tinne26/transition/src/input"
 import "github.com/tinne26/transition/src/utils"
 import "github.com/tinne26/transition/src/text"
-//import "github.com/tinne26/transition/src/shaders"
 
 // TODO: while on main menu, return ebiten.Termination if going to "save and quit"
 //       (or maybe stay always saved? autosave on progress / change?)
@@ -154,14 +153,6 @@ func (self *Game) Update() error {
 		ebiten.SetFullscreen(!ebiten.IsFullscreen())
 	}
 
-	// interaction hack countdown
-	if self.playerInteractionBlockCountdown > 0 {
-		self.playerInteractionBlockCountdown -= 1
-		if self.playerInteractionBlockCountdown == 0 {
-			self.player.SetBlockedForInteraction(false, self.soundscape)
-		}
-	}
-
 	// update game elements
 	err = self.background.Update()
 	if err != nil { return err }
@@ -169,8 +160,17 @@ func (self *Game) Update() error {
 	if self.longText != nil { // hacky little part
 		if input.Trigger(input.ActionInteract) {
 			self.soundscape.PlaySFX(audio.SfxInteract)
+			
+			ebitengineRef := false
+			for _, line := range self.longText {
+				ebitengineRef = ebitengineRef || strings.Contains(line, "HOSHI")
+			}
+			if ebitengineRef {
+				self.level.GetBackMasks().Add(bckg.MaskEbi, 0.2)
+			}
+
 			self.longText = nil
-			self.level.GetBackMasks().Add(bckg.MaskEbi, 0.2)
+			self.fadeInTicksLeft = uint16(math.Floor(0.666*FadeTicks))
 		}
 		return nil
 	}
@@ -188,7 +188,7 @@ func (self *Game) Update() error {
 				x, y := self.swordChallenge.X, self.swordChallenge.Y
 				self.swordChallenge = nil
 				self.camera.SetTarget(self.player)
-				self.player.SetBlockedForInteraction(false, self.soundscape)
+				self.player.UnblockInteractionAfter(8)
 				self.player.NotifySolvedSwordChallenge()
 				preType  := block.TypeDecorLargeSwordActive
 				postType := block.TypeDecorLargeSwordAbsorbed
@@ -281,12 +281,13 @@ func (self *Game) Draw(canvas *ebiten.Image) {
 	self.projector.SetCameraArea(focusAreaU16, xShift, yShift)
 	self.projector.LogicalCanvas.Clear()
 
-	// prioritize some hacky screens
+	// prioritize text screens (hacky)
 	if self.longText != nil {
 		self.background.DrawInto(self.projector.ActiveCanvas)
-		utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, 0.5)
+		utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, 0.666)
 		text.CenterRawDraw(self.projector.LogicalCanvas, self.longText, clr.WingsText)
-		utils.ProjectNearest(self.projector.LogicalCanvas, self.projector.ActiveCanvas)
+		self.projector.ProjectLogical(0, 0)
+		if self.fadeInTicksLeft > 0 { self.drawFadeIn() }
 		return // nothing else today
 	}
 
@@ -319,6 +320,10 @@ func (self *Game) Draw(canvas *ebiten.Image) {
 	// draw front blocks
 	self.level.DrawFrontPart(self.projector, playerFlags)
 
+	// draw camera debug
+	// self.camera.DebugDraw(self.projector.LogicalCanvas)
+	// self.projector.ProjectLogical(0, 0)
+
 	// draw text and UI
 	if self.textMessage != nil {
 		self.projector.LogicalCanvas.Clear()
@@ -333,14 +338,18 @@ func (self *Game) Draw(canvas *ebiten.Image) {
 	// fade in / out
 	if playerRect.Max.Y > limits.Max.Y {
 		diff := playerRect.Max.Y - limits.Max.Y
-		alpha := float64(diff)/200.0
+		alpha := float32(diff)/200.0
 		if alpha > 1.0 { alpha = 1.0 }
-		utils.FillOver(canvas, color.RGBA{0, 0, 0, uint8(alpha*255)})
+		utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, alpha)
 	} else if self.forcefulFadeOutLevel > 0 {
-		utils.FillOver(canvas, color.RGBA{0, 0, 0, uint8(self.forcefulFadeOutLevel*255)})
+		utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, float32(self.forcefulFadeOutLevel))
 	} else if self.fadeInTicksLeft > 0 {
-		alpha := float64(self.fadeInTicksLeft)/FadeTicks
-		if alpha > 1.0 { alpha = 1.0 }
-		utils.FillOver(canvas, color.RGBA{0, 0, 0, uint8(alpha*255)})
+		self.drawFadeIn()
 	}
+}
+
+func (self *Game) drawFadeIn() {
+	alpha := float32(self.fadeInTicksLeft)/FadeTicks
+	if alpha > 1.0 { alpha = 1.0 }
+	utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, alpha)
 }

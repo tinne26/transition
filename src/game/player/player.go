@@ -45,7 +45,7 @@ type Player struct {
 	reversingSelf bool
 	reversingPlants bool
 	reversingGhosts bool
-	blockedForInteraction bool
+	blockedForInteraction uint64
 	
 	hearts uint8
 	slashCooldown uint8 // if > 0, can't slash again yet
@@ -79,13 +79,12 @@ func (self *Player) SetIdleAt(centerX, floorY uint16, soundscape *audio.Soundsca
 	self.setMotionState(MStIdle, AnimIdle, soundscape)
 }
 
-func (self *Player) SetBlockedForInteraction(b bool, soundscape *audio.Soundscape) {
-	if b {
-		self.setMotionState(MStIdle, AnimInteract, soundscape)
-	} else {
-		self.setMotionState(MStIdle, AnimIdle, soundscape)
-	}
-	self.blockedForInteraction = b
+func (self *Player) SetBlockedForInteraction() {
+	self.blockedForInteraction = math.MaxUint64
+}
+
+func (self *Player) UnblockInteractionAfter(afterTicks uint64) {
+	self.blockedForInteraction = afterTicks
 }
 
 // Expect this to be changed as needed.
@@ -143,7 +142,17 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 		return nil
 	}
 
-	if self.blockedForInteraction { return nil }
+	// deal with interaction block
+	if self.blockedForInteraction > 0 {
+		if self.anim != AnimInteract {
+			self.setMotionState(MStIdle, AnimInteract, soundscape)
+		}
+		self.blockedForInteraction -= 1
+		if self.blockedForInteraction == 0 {
+			self.setMotionState(MStIdle, AnimIdle, soundscape)
+		}
+		return nil
+	}	
 
 	// predeclare final position variables
 	var newX, newY float64 = self.x, self.y
@@ -469,13 +478,11 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 	// update position, snapping it to the pixel grid when
 	// not moving in an axis in order to prevent blurriness
 	if self.x == newX { // no horz move case
-		// if self.orientation == HorzDirRight && !self.motionStatePreventsCeilSnap() {
-		// 	self.x = utils.FastCeil(self.x)
-		// } else {
-		// 	self.x = utils.FastFloor(self.x)
-		// }
-		// NOTE: too many problematic cases and bugs with ceil
-		self.x = utils.FastFloor(self.x) 
+		if self.orientation == HorzDirRight { // && !self.motionStatePreventsCeilSnap()
+			self.x = utils.FastCeil(self.x)
+		} else {
+			self.x = utils.FastFloor(self.x)
+		}
 	} else if uint16(newX) == reachedX { // reached final target
 		self.x = newX
 	} else if reachedX != uint16(self.x) { // only partial advance
