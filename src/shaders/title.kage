@@ -1,0 +1,62 @@
+package main
+
+var AngleShift float
+var Alpha float
+
+const AspectRatio = 16.0/9.0
+const Edge = 0.009
+const Pi = 3.141592
+func Fragment(position vec4, _ vec2, _ vec4) vec4 {
+	unitCoords := position.xy/imageDstTextureSize()
+	origin, size := imageDstRegionOnTexture()
+	unitCoords -= origin
+	unitCoords /= size
+	
+	// compensate aspect ratio so we still have a circle, not an oval
+	unitCoords.x = (unitCoords.x - 0.5)*AspectRatio + 0.5
+	
+	// get distance to center
+	dist := 2.0*distance(vec2(0.5, 0.5), unitCoords)
+	
+	// helper angle calculation
+	angle := atan2(0.5 - unitCoords.y, 0.5 - unitCoords.x)
+	
+	// first ring
+	var out vec4
+	ringMinRadius := 1.1
+	ringMaxRadius := ringMinRadius + 0.01
+	angleShiftFactor := -2.0 // use only non-zero integer values
+	numArcs := 16.0
+	arcFillRatio := 0.28
+	out += ringOut(dist, ringMinRadius, ringMaxRadius, angle, angleShiftFactor, numArcs, arcFillRatio)
+
+	// second ring
+	ringMinRadius = 1.56
+	ringMaxRadius = ringMinRadius + 0.022
+	angleShiftFactor = 3.0
+	numArcs = 12.0
+	arcFillRatio = 0.5
+	out += ringOut(dist, ringMinRadius, ringMaxRadius, angle, angleShiftFactor, numArcs, arcFillRatio)
+
+	// third ring
+	ringMinRadius = 0.6
+	ringMaxRadius = ringMinRadius + 0.007
+	angleShiftFactor = 4.0
+	numArcs = 20.0
+	arcFillRatio = 0.12
+	out += ringOut(dist, ringMinRadius, ringMaxRadius, angle, angleShiftFactor, numArcs, arcFillRatio)
+
+	return out
+}
+
+// Returns the additive color contribution for the arc parametrized by the given values.
+func ringOut(dist, minRadius, maxRadius, angle, angleShiftFactor, numArcs, arcFillRatio float) vec4 {
+	arcMod := mod(angle + AngleShift*angleShiftFactor, 2.0*Pi/numArcs)
+	
+	presence := min(
+		smoothstep(minRadius, minRadius + Edge, dist),
+		1 - smoothstep(maxRadius, maxRadius + Edge, dist),
+	)*smoothstep(arcMod, arcMod + Edge, arcFillRatio*((2.0*Pi)/numArcs))
+	
+	return vec4(0.078, 0.078, 0.078, 1.0)*presence*Alpha*0.24
+}

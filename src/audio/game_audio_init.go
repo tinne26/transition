@@ -49,7 +49,7 @@ func Initialize(soundscape *Soundscape, filesys fs.FS) error {
 	
 	sfx, err = loadOggMultiSFX(filesys, "assets/audio/sfx/sword_tap*.ogg", '1', '4')
 	if err != nil { return err }
-	sfx.SetVolumeCorrectorFactor(0.5)
+	sfx.SetVolumeCorrectorFactor(0.37)
 	SfxSwordTap = soundscape.RegisterSFX(sfx)
 
 	// load and set up bgms
@@ -57,7 +57,7 @@ func Initialize(soundscape *Soundscape, filesys fs.FS) error {
 	loop1, err = loadLooper(filesys, "assets/audio/bgm/background.ogg", 130, 5499197)
 	if err != nil { return err }
 	bgm := NewBgmFromLooper(loop1)
-	bgm.SetVolumeCorrectorFactor(0.66)
+	bgm.SetVolumeCorrectorFactor(0.5)
 	BgmBackground = soundscape.RegisterBGM(bgm)
 
 	loop1, err = loadLooper(filesys, "assets/audio/bgm/challenge_base.ogg", 75938, 1942845)
@@ -66,7 +66,7 @@ func Initialize(soundscape *Soundscape, filesys fs.FS) error {
 	if err != nil { return err }
 	auxFader := NewFader(NewProcessorInAdapterL16(loop2))
 	bgm = NewBgmFromFader(NewFader(NewAdder(NewProcessorInAdapterL16(loop1), auxFader)))
-	bgm.SetVolumeCorrectorFactor(0.56)
+	bgm.SetVolumeCorrectorFactor(0.5)
 	BgmChallenge = soundscape.RegisterBGM(bgm)
 	
 	// put aux fader on soundscape's automation panel

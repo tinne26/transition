@@ -2,6 +2,8 @@ package audio
 
 import "sync"
 
+import "github.com/tinne26/transition/src/utils"
+
 type Adder struct {
 	mutex sync.Mutex
 	sources []StereoProcessor
@@ -22,7 +24,7 @@ func (self *Adder) WriteStereo(buffer []float32) (int, error) {
 
 	// empty case
 	if len(self.sources) == 0 {
-		FastFill(buffer, 0)
+		utils.FastFill(buffer, 0)
 		return len(buffer), nil
 	}
 

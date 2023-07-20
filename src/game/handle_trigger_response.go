@@ -16,16 +16,9 @@ func (self *Game) HandleTriggerResponse(response any) {
 	case lvlkey.EntryKey:
 		// changing savepoint key
 		key := typedResponse
-		if self.prevEntryKey != lvlkey.Undefined {
-			lvl, _ := level.GetEntryPoint(self.prevEntryKey)
-			lvl.DisableSavepoints()
-		} else {
-			lvl, _ := level.GetEntryPoint(key)
-			lvl.DisableSavepoints()
-		}
 		lvl, _ := level.GetEntryPoint(key)
+		lvl.DisableSavepoints()
 		lvl.EnableSavepoint(key)
-		self.prevEntryKey = key
 		self.player.UnblockInteractionAfter(16)
 	case trigger.Transfer:
 		self.fadeInTicksLeft = FadeTicks

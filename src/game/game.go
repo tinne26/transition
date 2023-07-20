@@ -11,7 +11,6 @@ import "github.com/tinne26/transition/src/debug"
 import "github.com/tinne26/transition/src/game/player"
 import "github.com/tinne26/transition/src/game/level"
 import "github.com/tinne26/transition/src/game/level/block"
-import "github.com/tinne26/transition/src/game/level/lvlkey"
 import "github.com/tinne26/transition/src/game/bckg"
 import "github.com/tinne26/transition/src/game/u16"
 import "github.com/tinne26/transition/src/game/trigger"
@@ -19,6 +18,7 @@ import "github.com/tinne26/transition/src/game/state"
 import "github.com/tinne26/transition/src/game/hint"
 import "github.com/tinne26/transition/src/game/clr"
 import "github.com/tinne26/transition/src/game/sword"
+import "github.com/tinne26/transition/src/game/title"
 import "github.com/tinne26/transition/src/project"
 import "github.com/tinne26/transition/src/camera"
 import "github.com/tinne26/transition/src/audio"
@@ -48,7 +48,6 @@ type Game struct {
 	projector *project.Projector
 	optsFancyCamera bool
 	playerInteractionBlockCountdown uint8
-	prevEntryKey lvlkey.EntryKey
 
 	longText []string
 	textMessage *text.Message
@@ -57,6 +56,7 @@ type Game struct {
 	gameState *state.State
 	soundscape *audio.Soundscape
 	swordChallenge *sword.Challenge
+	titleScreen *title.Title
 	pendingResponse any
 }
 
@@ -78,7 +78,7 @@ func New(filesys fs.FS) (*Game, error) {
 	// the hacks from the main menu. we will have like 6 levels or so, so it should
 	// be quick enough to operate. and I can stick to latest save anyway. so, rewrite my
 	// own save (local disk or web)
-	entryKey := level.EntryStartSaveLeft
+	entryKey := level.EntryStartSaveLeft // level.EntrySwordSaveCenter
 
 	lvl, entry := level.GetEntryPoint(entryKey)
 	lvl.EnableSavepoint(entryKey)
@@ -91,7 +91,7 @@ func New(filesys fs.FS) (*Game, error) {
 		projector: project.NewProjector(640, 360),
 		gameState: state.New(),
 		soundscape: soundscape,
-		prevEntryKey: lvlkey.Undefined,
+		titleScreen: title.New(),
 		optsFancyCamera: true, // I keep it here mostly for testing
 	}
 	game.player.SetIdleAt(entry.X, entry.Y, game.soundscape)
@@ -104,7 +104,7 @@ func New(filesys fs.FS) (*Game, error) {
 	game.levelTriggers = game.level.GetTriggers()
 
 	input.SetBlocked(true)
-	game.soundscape.FadeIn(audio.BgmBackground, 0, time.Millisecond*1230, 0)
+	game.soundscape.FadeIn(audio.BgmBackground, 0, time.Millisecond*850, 0)
 	
 	return &game, nil
 }
@@ -156,6 +156,14 @@ func (self *Game) Update() error {
 	// update game elements
 	err = self.background.Update()
 	if err != nil { return err }
+
+	if self.titleScreen != nil {
+		self.titleScreen.Update(self.soundscape)
+		if self.titleScreen.Done() {
+			self.titleScreen = nil
+		}
+		return nil
+	}
 
 	if self.longText != nil { // hacky little part
 		if input.Trigger(input.ActionInteract) {
@@ -242,6 +250,7 @@ func (self *Game) transferPlayer(lvl *level.Level, position u16.Point) {
 	if lvl != self.level {
 		for _, trigger := range self.levelTriggers { trigger.OnLevelExit(self.gameState) }
 		for _, trigger := range self.levelTriggers { trigger.OnLevelEnter(self.gameState) }
+		self.level.DisableSavepoints()
 		self.level = lvl
 		self.background.SetColor(lvl.GetBackColor())
 		self.background.SetMaskColors(lvl.GetBackMaskColors())
@@ -281,19 +290,16 @@ func (self *Game) Draw(canvas *ebiten.Image) {
 	self.projector.SetCameraArea(focusAreaU16, xShift, yShift)
 	self.projector.LogicalCanvas.Clear()
 
-	// prioritize text screens (hacky)
-	if self.longText != nil {
-		self.background.DrawInto(self.projector.ActiveCanvas)
-		utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, 0.666)
-		text.CenterRawDraw(self.projector.LogicalCanvas, self.longText, clr.WingsText)
-		self.projector.ProjectLogical(0, 0)
-		if self.fadeInTicksLeft > 0 { self.drawFadeIn() }
-		return // nothing else today
-	}
-
 	// ---- draw current situation ----
 	// draw background
 	self.background.DrawInto(self.projector.ActiveCanvas)
+
+	if self.titleScreen != nil {
+		self.titleScreen.DrawShader(self.projector.ActiveCanvas)
+		self.titleScreen.Draw(self.projector.LogicalCanvas)
+		self.projector.ProjectLogical(0, 0)
+		return
+	}
 	
 	// draw parallaxed background
 	playerFlags := self.player.GetBlockFlags()
@@ -301,7 +307,7 @@ func (self *Game) Draw(canvas *ebiten.Image) {
 	self.projector.LogicalCanvas.Clear()
 
 	// draw sword challenge shaders if necessary
-	if self.swordChallenge != nil {
+	if self.swordChallenge != nil && self.camera.IsOnTarget() {
 		self.swordChallenge.Draw(self.projector.ActiveCanvas)
 	}
 
@@ -345,6 +351,15 @@ func (self *Game) Draw(canvas *ebiten.Image) {
 		utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, float32(self.forcefulFadeOutLevel))
 	} else if self.fadeInTicksLeft > 0 {
 		self.drawFadeIn()
+	}
+
+	// prioritize text screens (hacky)
+	// TODO: there should be a long text fade and a global fade.
+	if self.longText != nil {
+		utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, 0.85)
+		text.CenterRawDraw(self.projector.LogicalCanvas, self.longText, clr.WingsText)
+		self.projector.ProjectLogical(0, 0)
+		if self.fadeInTicksLeft > 0 { self.drawFadeIn() }
 	}
 }
 

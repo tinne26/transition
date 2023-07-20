@@ -202,8 +202,8 @@ func (self *Challenge) CurrentText() *text.Message {
 	}
 }
 
-func (self *Challenge) Draw(logicalCanvas *ebiten.Image) {
-	bounds := logicalCanvas.Bounds()
+func (self *Challenge) Draw(activeCanvas *ebiten.Image) {
+	bounds := activeCanvas.Bounds()
 	w, h := bounds.Dx(), bounds.Dy()
 	self.vertices[0].DstX = 0
 	self.vertices[0].DstY = 0
@@ -220,7 +220,7 @@ func (self *Challenge) Draw(logicalCanvas *ebiten.Image) {
 	self.opts.Uniforms["ProtectionAlpha"] = self.protectionAlpha
 	self.opts.Uniforms["ProtectionLevel"] = min(self.protection, self.expansion)
 	self.opts.Uniforms["FlashAlpha"] = self.flashAlpha
-	logicalCanvas.DrawTrianglesShader(self.vertices[:], []uint16{0, 1, 2, 1, 3, 2}, shaders.SwordChallenge, &self.opts)
+	activeCanvas.DrawTrianglesShader(self.vertices[:], []uint16{0, 1, 2, 1, 3, 2}, shaders.SwordChallenge, &self.opts)
 }
 
 func (self *Challenge) fadeOutHoldBgm(soundscape *audio.Soundscape) {

@@ -2,6 +2,8 @@ package audio
 
 import "time"
 
+import "github.com/tinne26/transition/src/utils"
+
 type Soundscape struct {
 	automationPanel *AutomationPanel
 
@@ -116,20 +118,11 @@ func (self *Soundscape) AutomationPanel() *AutomationPanel {
 }
 
 func (self *Soundscape) Update() error {
-	// update fading out bgms
-	removedCount := 0
-	i := 0
-	for i < len(self.fadingOutBGMs) - removedCount {
-		bgm := self.fadingOutBGMs[i]
-		if bgm.FullyFadedOut() {
-			last := len(self.fadingOutBGMs) - removedCount - 1
-			self.fadingOutBGMs[i], self.fadingOutBGMs[last] = self.fadingOutBGMs[last], self.fadingOutBGMs[i]
-			removedCount += 1
-		} else {
-			i += 1
-		}
-	}
-	self.fadingOutBGMs = self.fadingOutBGMs[0 : len(self.fadingOutBGMs) - removedCount]
+	// clean up faded out bgms
+	self.fadingOutBGMs = utils.IterDelete(
+		self.fadingOutBGMs,
+		func(bgm *BGM) bool { return bgm.FullyFadedOut() },
+	)
 
 	// ...
 

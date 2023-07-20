@@ -2,6 +2,8 @@ package audio
 
 import "sync"
 
+import "github.com/tinne26/transition/src/utils"
+
 var _ StereoProcessor = (*Fader)(nil)
 
 type Fader struct {
@@ -79,7 +81,7 @@ func (self *Fader) WriteStereo(buffer []float32) (int, error) {
 		if startSamples > 0 {
 			if self.startVolume == 0 { // if volume is zero, we don't read from source until after wait
 				i = (startSamples << 1)	
-				FastFill(buffer[0 : i], 0)
+				utils.FastFill(buffer[0 : i], 0)
 				n, err = self.source.WriteStereo(buffer[i : ])
 				n += startSamples
 			} else {
@@ -164,7 +166,7 @@ func (self *Fader) targetVolumeFill(buffer []float32) {
 		// volume already correct, do nothing
 	case 0.0:
 		// fast zero fill case
-		FastFill(buffer, 0)
+		utils.FastFill(buffer, 0)
 	default:
 		// general case
 		for i := 0; i < len(buffer); i += 2 {
@@ -180,7 +182,7 @@ func (self *Fader) startVolumeFill(buffer []float32) {
 		// volume already correct, do nothing
 	case 0.0:
 		// fast zero fill case
-		FastFill(buffer, 0)
+		utils.FastFill(buffer, 0)
 	default:
 		// general case
 		for i := 0; i < len(buffer); i += 2 {

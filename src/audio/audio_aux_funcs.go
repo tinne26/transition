@@ -27,21 +27,6 @@ func TimeDurationToSamples(duration time.Duration) int64 {
 	return samples
 }
 
-func FastFill[T any](buffer []T, value T) {
-	if len(buffer) <= 24 { // no-copy case
-		for i, _ := range buffer {
-			buffer[i] = value
-		}
-	} else { // copy case
-		for i, _ := range buffer[:16] {
-			buffer[i] = value
-		}
-		for i := 16; i < len(buffer); i *= 2 {
-			copy(buffer[i:], buffer[:i])
-		}
-	}
-}
-
 type Float interface { ~float32 | ~float64 }
 func NaNsToZero[T Float](buffer []T) {
 	for i, value := range buffer {

@@ -13,6 +13,9 @@ var maskedColoringSrc []byte
 //go:embed sword_challenge.kage
 var swordChallengeSrc []byte
 
+//go:embed title.kage
+var titleSrc []byte
+
 //go:embed projection.kage
 var projectionSrc []byte
 
@@ -22,6 +25,7 @@ var parallaxProjectionSrc []byte
 var Background *ebiten.Shader
 var MaskedColoring *ebiten.Shader
 var SwordChallenge *ebiten.Shader
+var Title *ebiten.Shader
 var Projection *ebiten.Shader
 var ParallaxProjection *ebiten.Shader
 
@@ -38,6 +42,10 @@ func LoadAll() error {
 
 	// sword challenge shader
 	SwordChallenge, err = ebiten.NewShader(swordChallengeSrc)
+	if err != nil { return err }
+
+	// sword challenge shader
+	Title, err = ebiten.NewShader(titleSrc)
 	if err != nil { return err }
 
 	// projection shader
