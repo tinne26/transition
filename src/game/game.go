@@ -38,16 +38,13 @@ type Game struct {
 	lastCanvasHeight int
 	needsRedraw bool
 
-	fadeInTicksLeft uint16
-	forcefulFadeOutLevel float64
-
 	player *player.Player
 	level *level.Level
 	camera *camera.Camera
 	background *bckg.Background
 	projector *project.Projector
+	fader *Fader
 	optsFancyCamera bool
-	playerInteractionBlockCountdown uint8
 
 	longText []string
 	textMessage *text.Message
@@ -59,9 +56,6 @@ type Game struct {
 	titleScreen *title.Title
 	pendingResponse any
 }
-
-const FadeTicks = 110
-const FullDarkFadeTicks = 30
 
 func New(filesys fs.FS) (*Game, error) {
 	err := player.LoadAnimations(filesys)
@@ -83,7 +77,7 @@ func New(filesys fs.FS) (*Game, error) {
 	lvl, entry := level.GetEntryPoint(entryKey)
 	lvl.EnableSavepoint(entryKey)
 	game := Game{
-		fadeInTicksLeft: FadeTicks + FullDarkFadeTicks,
+		fader: NewFader(),
 		player: player.New(),
 		level: lvl,
 		camera: camera.New(),
@@ -91,9 +85,11 @@ func New(filesys fs.FS) (*Game, error) {
 		projector: project.NewProjector(640, 360),
 		gameState: state.New(),
 		soundscape: soundscape,
-		titleScreen: title.New(),
+		titleScreen: title.New(), // nil, //
 		optsFancyCamera: true, // I keep it here mostly for testing
 	}
+	game.fader.SetBlackness(1.0)
+	if game.titleScreen == nil { game.fader.FadeTo(0.0) }
 	game.player.SetIdleAt(entry.X, entry.Y, game.soundscape)
 	game.camera.SetTarget(game.player)
 	game.camera.Center()
@@ -102,8 +98,6 @@ func New(filesys fs.FS) (*Game, error) {
 	game.background.SetMaskColors(game.level.GetBackMaskColors())
 	game.background.SetMasks(game.level.GetBackMasks())
 	game.levelTriggers = game.level.GetTriggers()
-
-	input.SetBlocked(true)
 	game.soundscape.FadeIn(audio.BgmBackground, 0, time.Millisecond*850, 0)
 	
 	return &game, nil
@@ -133,13 +127,7 @@ func (self *Game) Update() error {
 	self.needsRedraw = true
 
 	// transition update
-	if self.fadeInTicksLeft > 0 {
-		self.fadeInTicksLeft -= 1
-		if self.fadeInTicksLeft <= 80 {
-			input.SetBlocked(false)
-		}
-	}
-	self.forcefulFadeOutLevel = 0
+	self.fader.Update()
 
 	// update game core systems
 	var err error
@@ -161,6 +149,8 @@ func (self *Game) Update() error {
 		self.titleScreen.Update(self.soundscape)
 		if self.titleScreen.Done() {
 			self.titleScreen = nil
+			self.fader.FadeTo(0.0)
+			input.BlockTemporarily(30)
 		}
 		return nil
 	}
@@ -169,6 +159,7 @@ func (self *Game) Update() error {
 		if input.Trigger(input.ActionInteract) {
 			self.soundscape.PlaySFX(audio.SfxInteract)
 			
+			// TODO: may remove this little hack for the non-jam versions
 			ebitengineRef := false
 			for _, line := range self.longText {
 				ebitengineRef = ebitengineRef || strings.Contains(line, "HOSHI")
@@ -178,7 +169,6 @@ func (self *Game) Update() error {
 			}
 
 			self.longText = nil
-			self.fadeInTicksLeft = uint16(math.Floor(0.666*FadeTicks))
 		}
 		return nil
 	}
@@ -228,10 +218,10 @@ func (self *Game) Update() error {
 		}
 	}
 
-	// detect player death from falling
+	// detect player death from falling and/or update fader
 	lim := self.level.GetLimits()
 	if playerRect.Min.Y > lim.Max.Y + 200 {
-		input.SetBlocked(true)
+		input.BlockTemporarily(40)
 		self.soundscape.PlaySFX(audio.SfxDeath)
 		for _, trigger := range self.levelTriggers { trigger.OnDeath(self.gameState) }
 		self.respawnPlayer()
@@ -259,7 +249,8 @@ func (self *Game) transferPlayer(lvl *level.Level, position u16.Point) {
 	}
 	self.player.SetIdleAt(position.X, position.Y, self.soundscape)
 	self.camera.Center()
-	self.fadeInTicksLeft = FadeTicks + FullDarkFadeTicks
+	self.fader.SetBlackness(1.0)
+	self.fader.FadeToAfter(0.0, 16)
 }
 
 func (self *Game) Draw(canvas *ebiten.Image) {
@@ -334,7 +325,7 @@ func (self *Game) Draw(canvas *ebiten.Image) {
 	if self.textMessage != nil {
 		self.projector.LogicalCanvas.Clear()
 		text.Draw(self.projector.LogicalCanvas, 320, 324, self.textMessage)
-		utils.ProjectNearest(self.projector.LogicalCanvas, self.projector.ActiveCanvas)
+		self.projector.ProjectLogical(0, 0)
 		self.textMessage = nil // dismiss, we use stuff only once cause we are wasteful
 	}
 
@@ -342,29 +333,24 @@ func (self *Game) Draw(canvas *ebiten.Image) {
 	debug.Draw(self.projector.ActiveCanvas)
 
 	// fade in / out
-	if playerRect.Max.Y > limits.Max.Y {
-		diff := playerRect.Max.Y - limits.Max.Y
-		alpha := float32(diff)/200.0
-		if alpha > 1.0 { alpha = 1.0 }
-		utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, alpha)
-	} else if self.forcefulFadeOutLevel > 0 {
-		utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, float32(self.forcefulFadeOutLevel))
-	} else if self.fadeInTicksLeft > 0 {
-		self.drawFadeIn()
-	}
+	// TODO: move most of this stuff into the logical update, handle 
+	//       only a single alpha overlay value.
+	// if playerRect.Max.Y > limits.Max.Y {
+	// 	diff := playerRect.Max.Y - limits.Max.Y
+	// 	alpha := float32(diff)/200.0
+	// 	if alpha > 1.0 { alpha = 1.0 }
+	// 	utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, alpha)
+	// } else if self.forcefulFadeOutLevel > 0 {
+	// 	utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, float32(self.forcefulFadeOutLevel))
+	// } else if self.fadeInTicksLeft > 0 {
+	// 	self.drawFadeIn()
+	// }
+	self.fader.Draw(self.projector.ActiveCanvas)
 
-	// prioritize text screens (hacky)
-	// TODO: there should be a long text fade and a global fade.
+	// draw long text if we have any
 	if self.longText != nil {
 		utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, 0.85)
 		text.CenterRawDraw(self.projector.LogicalCanvas, self.longText, clr.WingsText)
 		self.projector.ProjectLogical(0, 0)
-		if self.fadeInTicksLeft > 0 { self.drawFadeIn() }
 	}
-}
-
-func (self *Game) drawFadeIn() {
-	alpha := float32(self.fadeInTicksLeft)/FadeTicks
-	if alpha > 1.0 { alpha = 1.0 }
-	utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, alpha)
 }

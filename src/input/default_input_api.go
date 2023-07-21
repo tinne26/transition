@@ -26,3 +26,7 @@ func LastPressed(actions ...Action) (Action, bool) {
 func SetBlocked(blocked bool) {
 	defaultInput.SetBlocked(blocked)
 }
+
+func BlockTemporarily(blockTicks uint64) {
+	defaultInput.BlockTemporarily(blockTicks)
+}

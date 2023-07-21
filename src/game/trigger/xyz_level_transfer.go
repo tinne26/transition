@@ -23,16 +23,18 @@ type TrigLevelTransfer struct {
 }
 
 func NewLevelTransfer(x, y uint16, dir TransferDir, entryKey lvlkey.EntryKey) Trigger {
+	const XRange = 80
+	
 	switch dir {
 	case RightTransfer:
 		return &TrigLevelTransfer{
-			area: u16.NewRect(x - 60, y - 150, x, y),
+			area: u16.NewRect(x - XRange, y - 150, x, y),
 			dir: dir,
 			trans: Transfer{entryKey},
 		}
 	case LeftTransfer:
 		return &TrigLevelTransfer{
-			area: u16.NewRect(x, y - 150, x + 60, y),
+			area: u16.NewRect(x, y - 150, x + XRange, y),
 			dir: dir,
 			trans: Transfer{entryKey},
 		}

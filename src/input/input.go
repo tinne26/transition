@@ -1,5 +1,7 @@
 package input
 
+import "math"
+
 import "github.com/hajimehoshi/ebiten/v2"
 
 type Input struct {
@@ -7,7 +9,7 @@ type Input struct {
 	keyboardMappings [NumActions]ebiten.Key
 	gamepadMappings [NumActions]ebiten.StandardGamepadButton
 	gamepadIds []ebiten.GamepadID
-	blocked bool
+	blockedTicksLeft uint64
 }
 
 func NewInput(keyboardMappings map[Action]ebiten.Key, gamepadMappings map[Action]ebiten.StandardGamepadButton) *Input {
@@ -48,8 +50,13 @@ func (self *Input) Update() error {
 		//       I don't think I need to do much here yet
 	}
 	
+	// consider input blocking
+	if self.blockedTicksLeft > 0 {
+		self.blockedTicksLeft -= 1
+		return nil
+	}
+
 	// update input
-	if self.blocked { return nil }
 	if newGpCount > 0 {
 		currGamepadID = self.gamepadIds[newGpCount - 1]
 		for action, ticks := range self.pressedTicks {
@@ -97,14 +104,27 @@ func (self *Input) Unwind() {
 }
 
 func (self *Input) SetBlocked(blocked bool) {
-	if self.blocked == blocked { return }
-	self.blocked = blocked
-	if !blocked { return }
-
-	// clear previous values
-	for i := 0; i < NumActions; i++ {
-		self.pressedTicks[i] = 0
+	if blocked {
+		if !self.IsBlocked() {
+			// clear previous values
+			for i := 0; i < NumActions; i++ {
+				self.pressedTicks[i] = 0
+			}
+		}
+		self.blockedTicksLeft = math.MaxUint64
+	} else {
+		self.blockedTicksLeft = 0
 	}
+}
+
+func (self *Input) BlockTemporarily(blockedTicks uint64) {
+	if blockedTicks == 0 { panic("blockedTicks must be > 0") }
+	self.SetBlocked(true)
+	self.blockedTicksLeft = blockedTicks
+}
+
+func (self *Input) IsBlocked() bool {
+	return self.blockedTicksLeft > 0
 }
 
 // Returns the ActionKey among the actions given that has been pressed

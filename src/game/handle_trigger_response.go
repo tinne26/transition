@@ -21,13 +21,16 @@ func (self *Game) HandleTriggerResponse(response any) {
 		lvl.EnableSavepoint(key)
 		self.player.UnblockInteractionAfter(16)
 	case trigger.Transfer:
-		self.fadeInTicksLeft = FadeTicks
 		lvl, pt := level.GetEntryPoint(typedResponse.Key)
 		self.transferPlayer(lvl, pt)
 	case []string:
 		self.longText = typedResponse
 	case float64: // treat as opacity level, forcing fade outs and stuff
-		self.forcefulFadeOutLevel = typedResponse
+		if self.fader.IsFading() {
+			self.fader.SetBlacknessIfBelow(typedResponse)
+		} else {
+			self.fader.SetBlackness(typedResponse)
+		}
 	case *sword.Challenge:
 		challenge := typedResponse
 		self.player.SetBlockedForInteraction()
