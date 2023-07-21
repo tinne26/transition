@@ -16,11 +16,37 @@ import "github.com/tinne26/transition/src/shaders"
 
 const TitleText  = "TRANSITION"
 const TitleScale = 8
+var ContextText = []string{
+	"TO MY SURPRISE, IT HAD BEEN A QUIET JOURNEY;",
+	"UNEVENTFUL, BORING ALMOST.",
+	"",
+	"AS I ENTERED THE OUTER RING OF LETHIEN'S DOMAINS, THOUGH,",
+	"MY FRAME OF MIND SHIFTED ALONGSIDE THE SCENERY.",
+	"",
+	"I STARTED TO GROW RESTLESS...",
+	"",
+	"WISHING FOR THE PREVIOUS QUIETNESS TO REMAIN BY MY SIDE,",
+	"EVEN IF ONLY FOR A FEW MORE STEPS.",
+	"",
+	"[PRESS " + string(text.KeyI) + " TO CONTINUE]",
+}
+
+type Stage uint8
+const (
+	StageInitWait Stage = iota
+	StageTitle
+	StageTitleFadeOut
+	StageText
+	StageTextFadeOut
+	StageDone
+)
 
 type Title struct {
-	elapsedTicks int64
+	stage Stage
+	stageElapsedTicks int64
+	stageOpacity float64
 	untilNewTransition int64
-	done bool
+	helpTextMaxTicks int64
 
 	titleFill *image.RGBA
 	ebiTitleFill *ebiten.Image
@@ -30,7 +56,9 @@ type Title struct {
 	transitions []*Transition
 	vertices [4]ebiten.Vertex
 	angleShift float64
+	extraRadius float32
 	shaderOpts ebiten.DrawTrianglesShaderOptions
+	shaderAlpha float32
 }
 
 func New() *Title {
@@ -38,6 +66,8 @@ func New() *Title {
 	w, h := text.MeasureLineWidth(TitleText), text.LineHeight
 	ws, hs := w*TitleScale, h*TitleScale
 	title := &Title{
+		stage: StageInitWait,
+		stageOpacity: 1.0,
 		titleFill: image.NewRGBA(image.Rect(0, 0, ws, hs)),
 		ebiTitleFill: ebiten.NewImage(ws, hs),
 		ebiTitleMask: ebiten.NewImage(ws, hs),
@@ -60,36 +90,70 @@ func New() *Title {
 }
 
 func (self *Title) Update(soundscape *audio.Soundscape) error {
-	self.elapsedTicks += 1
-	if self.elapsedTicks < 40 { return nil } // give some initial space
-	
-	self.transitions = utils.IterDelete(self.transitions, func(transition *Transition) bool {
-		return !transition.Update(self.titleFill)
-	})
-	
-	// trigger new transition if relevant
-	self.untilNewTransition -= 1
-	if self.untilNewTransition == 0 {
-		untilNewTransition := minTickTransitionMargin*float64(2 + rand.Intn(8))
-		self.untilNewTransition = int64(untilNewTransition)
-		colors := []color.RGBA{
-			clr.Dark,
-			color.RGBA{255, 255, 255, 255},
-			color.RGBA{0, 0, 0, 32},
-		}
-		self.transitions = append(self.transitions, newTransition(colors[rand.Intn(len(colors))]))
-	}
-
-	// update shader variables
-	self.angleShift += 0.0007
+	// common update logic
+	self.stageElapsedTicks += 1
+	self.angleShift += 0.00056
 	if self.angleShift > math.Pi {
 		self.angleShift -= math.Pi*2
 	}
+	if self.shaderAlpha < 1.0 && self.stage != StageInitWait {
+		self.shaderAlpha += 0.0024 // increase
+		if self.shaderAlpha > 1.0 { self.shaderAlpha = 1.0 } // clamp
+	}
+	if self.stage >= StageText && self.extraRadius < 0.22 {
+		self.extraRadius += 0.003
+	}
 
-	// detect input to move on
-	if input.Trigger(input.ActionInteract) && self.elapsedTicks > 200 {
-		soundscape.PlaySFX(audio.SfxInteract)
-		self.done = true
+	// stage-specific logic
+	switch self.stage {
+	case StageInitWait:
+		if self.stageElapsedTicks > 40 {
+			self.setStage(StageTitle)
+		}
+	case StageTitle, StageTitleFadeOut:
+		self.updateTitleTransitions()
+		
+		if self.stage == StageTitle {
+			if input.Trigger(input.ActionInteract) && self.stageElapsedTicks > 160 {
+				soundscape.PlaySFX(audio.SfxInteract)
+				self.setStage(StageTitleFadeOut)
+			}
+		} else { // self.stage == StageTitleFadeOut
+			const fadeOutTicks = 160
+			const interWait = 20
+			if self.stageElapsedTicks > fadeOutTicks + interWait {
+				self.setStage(StageText)
+			} else {
+				self.stageOpacity = utils.Max(1.0 - float64(self.stageElapsedTicks)/fadeOutTicks, 0.0)
+			}
+		}
+	case StageText:
+		const fadeInTicks = 120
+		const preWait = 20
+		if self.stageElapsedTicks < preWait {
+			self.stageOpacity = 0.0
+		} else {
+			self.stageOpacity = utils.Min(float64(self.stageElapsedTicks - preWait)/fadeInTicks, 1.0)
+		}
+
+		if self.stageOpacity >= 0.8 {
+			if input.Trigger(input.ActionInteract) && self.stageElapsedTicks > 160 {
+				soundscape.PlaySFX(audio.SfxInteract)
+				self.setStage(StageTextFadeOut)
+			}
+		}
+	case StageTextFadeOut:
+		const fadeOutTicks = 160
+		const postWait = 80
+		if self.stageElapsedTicks > fadeOutTicks + postWait {
+			self.setStage(StageDone)
+		} else {
+			self.stageOpacity = utils.Max(1.0 - float64(self.stageElapsedTicks)/fadeOutTicks, 0.0)
+		}
+	case StageDone:
+		// nothing to do here, stay in the darkness
+	default:
+		panic(self.stage)
 	}
 
 	return nil
@@ -101,30 +165,53 @@ func (self *Title) Draw(logicalCanvas *ebiten.Image) {
 	bounds = self.ebiTitleRender.Bounds()
 	titleWidth, titleHeight := bounds.Dx(), bounds.Dy()
 
-	// draw fill and mask into "title render"
-	opts := ebiten.DrawImageOptions{}
-	self.ebiTitleFill.WritePixels(self.titleFill.Pix)
-	self.ebiTitleRender.Clear()
-	self.ebiTitleRender.DrawImage(self.ebiTitleMask, &opts)
-	opts.Blend = ebiten.BlendSourceIn
-	self.ebiTitleRender.DrawImage(self.ebiTitleFill, &opts)
-	opts.Blend = ebiten.BlendSourceOver // restore to default blending
+	switch self.stage {
+	case StageInitWait:
+		// nothing to draw
+	case StageTitle, StageTitleFadeOut:
+		// draw fill and mask into "title render"
+		opts := ebiten.DrawImageOptions{}
+		self.ebiTitleFill.WritePixels(self.titleFill.Pix)
+		self.ebiTitleRender.Clear()
+		self.ebiTitleRender.DrawImage(self.ebiTitleMask, &opts)
+		opts.Blend = ebiten.BlendSourceIn
+		self.ebiTitleRender.DrawImage(self.ebiTitleFill, &opts)
+		opts.Blend = ebiten.BlendSourceOver // restore to default blending
+		
+		// determine contents opacity
+		opacity := math.Pow(self.stageOpacity, 2.2) // *
+		// * I don't do gamma correction everywhere, but in some parts it's
+		//   kinda visually annoying, so I have to fix it for my sanity...
 
-	// draw shadow and title render
-	ox, oy := (canvasWidth - titleWidth)/2, phiThirdInt(canvasHeight) - titleHeight/2
-	opts.GeoM.Translate(float64(ox) + TitleScale/2, float64(oy) + TitleScale/2)
-	opts.ColorScale.Scale(0, 0, 0, 0.06)
-	logicalCanvas.DrawImage(self.ebiTitleRender, &opts)
-	opts.ColorScale.Reset()
-	opts.GeoM.Reset()
-	opts.GeoM.Translate(float64(ox), float64(oy))
-	logicalCanvas.DrawImage(self.ebiTitleRender, &opts)
-	
-	// draw helper text so the player knows what to do
-	auxText := "[ PRESS " + string(text.KeyI) + " TO START ]"
-	helpTextAlphaFactor := utils.Min(float64(utils.Max(self.elapsedTicks - 180, 0))*0.006, 1.0)
-	ox, oy = (canvasWidth - text.MeasureLineWidth(auxText))/2, oy + titleHeight + titleHeight/2 - text.LineHeight/2
-	text.DrawLine(logicalCanvas, auxText, ox, oy, utils.RescaleAlphaRGBA(clr.Dark, uint8(255*helpTextAlphaFactor)))
+		// draw shadow and title render
+		ox, oy := (canvasWidth - titleWidth)/2, phiThirdInt(canvasHeight) - titleHeight/2
+		opts.GeoM.Translate(float64(ox) + TitleScale/2, float64(oy) + TitleScale/2)
+		opts.ColorScale.Scale(0, 0, 0, 0.06)
+		opts.ColorScale.ScaleAlpha(float32(opacity))
+		logicalCanvas.DrawImage(self.ebiTitleRender, &opts)
+		opts.ColorScale.Reset()
+		opts.ColorScale.ScaleAlpha(float32(opacity))
+		opts.GeoM.Reset()
+		opts.GeoM.Translate(float64(ox), float64(oy))
+		logicalCanvas.DrawImage(self.ebiTitleRender, &opts)
+
+		// draw helper text so the player knows what to do
+		auxText := "[ PRESS " + string(text.KeyI) + " TO START ]"
+		self.helpTextMaxTicks = utils.Max(self.stageElapsedTicks - 140, self.helpTextMaxTicks)
+		helpTextAlphaFactor := utils.Min(float64(self.helpTextMaxTicks)*0.006, 1.0)*opacity
+		ox, oy = (canvasWidth - text.MeasureLineWidth(auxText))/2, oy + titleHeight + titleHeight/2 - text.LineHeight/2
+		text.DrawLine(logicalCanvas, auxText, ox, oy, utils.RescaleAlphaRGBA(clr.Dark, uint8(255*helpTextAlphaFactor)))
+	case StageText, StageTextFadeOut:
+		textColor := utils.RescaleAlphaRGBA(clr.Dark, uint8(self.stageOpacity*255))
+		text.CenterRawDraw(logicalCanvas, ContextText, textColor)
+		if self.stage == StageTextFadeOut {
+			utils.FillOverF32(logicalCanvas, 0, 0, 0, 1.0 - float32(math.Pow(self.stageOpacity, 2.2)))
+		}
+	case StageDone:
+		utils.FillOverF32(logicalCanvas, 0, 0, 0, 1.0)
+	default:
+		panic(self.stage)
+	}
 }
 
 func (self *Title) DrawShader(activeCanvas *ebiten.Image) {
@@ -140,13 +227,41 @@ func (self *Title) DrawShader(activeCanvas *ebiten.Image) {
 	self.vertices[3].DstY = float32(h)
 
 	self.shaderOpts.Uniforms["AngleShift"] = float32(self.angleShift)
-	self.shaderOpts.Uniforms["Alpha"] = utils.Min(utils.Max(float32(self.elapsedTicks - 160)*0.0013, 0.0), 1.0)
+	self.shaderOpts.Uniforms["Alpha"] = self.shaderAlpha
+	self.shaderOpts.Uniforms["ExtraRadius"] = self.extraRadius
 	activeCanvas.DrawTrianglesShader(self.vertices[:], []uint16{0, 1, 2, 1, 3, 2}, shaders.Title, &self.shaderOpts)
 }
 
 func (self *Title) Done() bool {
-	return self.done
+	return self.stage == StageDone
 }
+
+// --- internal helper functions ---
+
+func (self *Title) setStage(stage Stage) {
+	self.stage = stage
+	self.stageElapsedTicks = 0
+}
+
+func (self *Title) updateTitleTransitions() {
+	self.transitions = utils.IterDelete(self.transitions, func(transition *Transition) bool {
+		return !transition.Update(self.titleFill)
+	})
+
+	self.untilNewTransition -= 1
+	if self.untilNewTransition == 0 {
+		untilNewTransition := minTickTransitionMargin*float64(2 + rand.Intn(8))
+		self.untilNewTransition = int64(untilNewTransition)
+		colors := []color.RGBA{
+			clr.Dark,
+			color.RGBA{255, 255, 255, 255},
+			color.RGBA{0, 0, 0, 32},
+		}
+		self.transitions = append(self.transitions, newTransition(colors[rand.Intn(len(colors))]))
+	}
+}
+
+// --- misc helper functions ---
 
 func phiThird(x float64) float64 {
 	return x - x*(math.Phi - 1.0)

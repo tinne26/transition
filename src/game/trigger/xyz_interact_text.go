@@ -35,6 +35,6 @@ func (self *TrigInteractText) Update(playerRect u16.Rect, _ *state.State, sounds
 	return nil, nil
 }
 
-func (self *TrigAutoText) OnLevelEnter(_ *state.State) {}
-func (self *TrigAutoText) OnLevelExit(_ *state.State) {}
-func (self *TrigAutoText) OnDeath(_ *state.State) {}
+func (self *TrigInteractText) OnLevelEnter(_ *state.State) {}
+func (self *TrigInteractText) OnLevelExit(_ *state.State) {}
+func (self *TrigInteractText) OnDeath(_ *state.State) {}

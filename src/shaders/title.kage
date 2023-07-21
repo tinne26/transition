@@ -1,6 +1,7 @@
 package main
 
 var AngleShift float
+var ExtraRadius float
 var Alpha float
 
 const AspectRatio = 16.0/9.0
@@ -21,25 +22,25 @@ func Fragment(position vec4, _ vec2, _ vec4) vec4 {
 	// helper angle calculation
 	angle := atan2(0.5 - unitCoords.y, 0.5 - unitCoords.x)
 	
-	// first ring
+	// mid ring
 	var out vec4
-	ringMinRadius := 1.1
+	ringMinRadius := 1.1 + ExtraRadius*0.8
 	ringMaxRadius := ringMinRadius + 0.01
 	angleShiftFactor := -2.0 // use only non-zero integer values
 	numArcs := 16.0
 	arcFillRatio := 0.28
 	out += ringOut(dist, ringMinRadius, ringMaxRadius, angle, angleShiftFactor, numArcs, arcFillRatio)
 
-	// second ring
-	ringMinRadius = 1.56
+	// outer ring
+	ringMinRadius = 1.56 + ExtraRadius*0.33
 	ringMaxRadius = ringMinRadius + 0.022
 	angleShiftFactor = 3.0
 	numArcs = 12.0
-	arcFillRatio = 0.5
+	arcFillRatio = 0.45
 	out += ringOut(dist, ringMinRadius, ringMaxRadius, angle, angleShiftFactor, numArcs, arcFillRatio)
 
-	// third ring
-	ringMinRadius = 0.6
+	// inner ring
+	ringMinRadius = 0.6 + ExtraRadius*1.06
 	ringMaxRadius = ringMinRadius + 0.007
 	angleShiftFactor = 4.0
 	numArcs = 20.0
