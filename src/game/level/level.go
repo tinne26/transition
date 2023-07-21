@@ -295,7 +295,7 @@ func (self *Level) EnableSavepoint(saveKey lvlkey.EntryKey) {
 		}
 	}
 
-	if closestSaveIndex == -1 { panic("no close save point found") }
+	if closestSaveIndex == -1 { panic("failed to find savepoint") }
 	closestBlock := self.savepoints[closestSaveIndex]
 	ii := closestBlock.Type().InternalIndex
 	switch ii {
@@ -307,6 +307,8 @@ func (self *Level) EnableSavepoint(saveKey lvlkey.EntryKey) {
 		newBlock := block.NewBlock(block.TypeSaveActive_B)
 		newBlock.X, newBlock.Y = closestBlock.X, closestBlock.Y
 		self.savepoints[closestSaveIndex] = newBlock
+	case block.TypeSaveActive_A, block.TypeSaveActive_B:
+		// already active, ignore
 	default:
 		panic(ii)
 	}

@@ -251,6 +251,12 @@ func (self *Game) transferPlayer(lvl *level.Level, position u16.Point) {
 	self.camera.Center()
 	self.fader.SetBlackness(1.0)
 	self.fader.FadeToAfter(0.0, 16)
+	
+	// if going into the level that has the active reset point, restore its graphics
+	lvl, _ = level.GetEntryPoint(self.gameState.LastSaveEntryKey)
+	if lvl == self.level {
+		self.level.EnableSavepoint(self.gameState.LastSaveEntryKey)
+	}
 }
 
 func (self *Game) Draw(canvas *ebiten.Image) {
