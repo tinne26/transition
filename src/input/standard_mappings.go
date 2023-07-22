@@ -3,7 +3,7 @@ package input
 import "github.com/hajimehoshi/ebiten/v2"
 
 // TODO: stdKeyboardMappingArrowsASD, stdKeyboardMappingArrowsZXC, ...
-var stdKeyboardMappingWASD = map[Action]ebiten.Key{
+var StdKeyboardMappingWASD = map[Action]ebiten.Key{
 	ActionMoveLeft: ebiten.KeyA,
 	ActionMoveRight: ebiten.KeyD,
 	ActionDown: ebiten.KeyS,
@@ -20,7 +20,7 @@ var stdKeyboardMappingWASD = map[Action]ebiten.Key{
 }
 
 // TODO: stdGamepadMappingAlt, etc
-var stdGamepadMapping = map[Action]ebiten.StandardGamepadButton{
+var StdGamepadMapping = map[Action]ebiten.StandardGamepadButton{
 	ActionMoveLeft: ebiten.StandardGamepadButtonLeftLeft,
 	ActionMoveRight: ebiten.StandardGamepadButtonLeftRight,
 	ActionUp: ebiten.StandardGamepadButtonLeftTop,

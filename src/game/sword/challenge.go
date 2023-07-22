@@ -9,21 +9,10 @@ import "github.com/tinne26/transition/src/text"
 import "github.com/tinne26/transition/src/input"
 import "github.com/tinne26/transition/src/shaders"
 import "github.com/tinne26/transition/src/audio"
+import "github.com/tinne26/transition/src/game/context"
 import "github.com/tinne26/transition/src/game/clr"
 
-// plan:
-// - press I to interact
-// - orient the player towards the object, show the player animation of hand extended, center camera on sword
-// - have a background image expand for its power, with N color rings
-// - hold to absorb
-// - tap to break into the next stage
-// - hold again
-// - you lose HP as the thing goes on, or maybe the camera vibration increases until it
-//   suddenly stops.
-// - "you didn't make it in time"
-
-// "Quickly tap O to break into the source of power"
-// "Hold O to absorb the power"
+// TODO: what about a small flash when the protection recovers? that would be nice, no?
 
 type Challenge struct {
 	X, Y uint16 // exposed as the camera focus point
@@ -63,13 +52,10 @@ func NewChallenge(x, y uint16) *Challenge {
 
 
 const MaxExpansion = 1.3
-func (self *Challenge) Update(soundscape *audio.Soundscape) error {
+func (self *Challenge) Update(ctx *context.Context) error {
 	const FlashSpeed = 0.18
 
 	// flashing
-	if input.Trigger(input.ActionMoveLeft) {
-		self.flashChange = FlashSpeed
-	}
 	if self.flashChange > 0 {
 		self.flashAlpha += self.flashChange
 		if self.flashAlpha >= 1.0 {
@@ -90,21 +76,15 @@ func (self *Challenge) Update(soundscape *audio.Soundscape) error {
 
 	// safety fade out stuff
 	if self.holdBgmFadedIn && self.consecutiveHold == 0 {
-		self.fadeOutHoldBgm(soundscape)
+		self.fadeOutHoldBgm(ctx)
 	}
 
 	// already over case
 	if self.hp == 0 {
-		if self.holdBgmFadedIn { self.fadeOutHoldBgm(soundscape) }
+		if self.holdBgmFadedIn { self.fadeOutHoldBgm(ctx) }
 		self.expansion -= 0.02
 		if self.expansion < 0 { self.expansion = 0 }
 		return nil
-	}
-
-	// hacks
-	if input.Trigger(input.ActionMoveRight) {
-		self.protection = 0.0
-		self.isProtectionActive = false
 	}
 
 	// angle update
@@ -131,8 +111,8 @@ func (self *Challenge) Update(soundscape *audio.Soundscape) error {
 	// main progress logic
 	preConsecutiveHold := self.consecutiveHold
 	if self.isProtectionActive {
-		if acceptInput && input.Trigger(input.ActionOutReverse) {
-			soundscape.PlaySFX(audio.SfxSwordTap)
+		if acceptInput && ctx.Input.Trigger(input.ActionOutReverse) {
+			ctx.Audio.PlaySFX(audio.SfxSwordTap)
 			self.protection -= 0.06
 			if self.protection <= 0.0 {
 				self.isProtectionActive = false
@@ -148,10 +128,10 @@ func (self *Challenge) Update(soundscape *audio.Soundscape) error {
 		}
 
 		if acceptInput {
-			if input.Pressed(input.ActionOutReverse) {
+			if ctx.Input.Pressed(input.ActionOutReverse) {
 				self.consecutiveHold += 1
 				if self.consecutiveHold < 10 {
-					if !self.holdBgmFadedIn { self.fadeInHoldBgm(soundscape) }
+					if !self.holdBgmFadedIn { self.fadeInHoldBgm(ctx) }
 					self.hp -= 0.0002
 				} else {
 					self.hp -= 0.001
@@ -159,7 +139,7 @@ func (self *Challenge) Update(soundscape *audio.Soundscape) error {
 				if self.hp < 0.0 {
 					self.flashChange = FlashSpeed
 					self.hp = 0.0
-					soundscape.PlaySFX(audio.SfxSwordEnd)
+					ctx.Audio.PlaySFX(audio.SfxSwordEnd)
 				}
 			}
 		}
@@ -168,7 +148,7 @@ func (self *Challenge) Update(soundscape *audio.Soundscape) error {
 	if self.consecutiveHold <= preConsecutiveHold {
 		self.consecutiveHold = 0
 		if self.holdBgmFadedIn {
-			self.fadeOutHoldBgm(soundscape)
+			self.fadeOutHoldBgm(ctx)
 		}
 	}
 
@@ -223,15 +203,15 @@ func (self *Challenge) Draw(activeCanvas *ebiten.Image) {
 	activeCanvas.DrawTrianglesShader(self.vertices[:], []uint16{0, 1, 2, 1, 3, 2}, shaders.SwordChallenge, &self.opts)
 }
 
-func (self *Challenge) fadeOutHoldBgm(soundscape *audio.Soundscape) {
+func (self *Challenge) fadeOutHoldBgm(ctx *context.Context) {
 	self.holdBgmFadedIn = false
-	fader := soundscape.AutomationPanel().GetResource(audio.ResKeyChallengeFader).(*audio.Fader)
+	fader := ctx.Audio.AutomationPanel().GetResource(audio.ResKeyChallengeFader).(*audio.Fader)
 	fader.Transition(0.0, 0, audio.TimeDurationToSamples(time.Millisecond*200))
 }
 
-func (self *Challenge) fadeInHoldBgm(soundscape *audio.Soundscape) {
+func (self *Challenge) fadeInHoldBgm(ctx *context.Context) {
 	self.holdBgmFadedIn = true
-	fader := soundscape.AutomationPanel().GetResource(audio.ResKeyChallengeFader).(*audio.Fader)
+	fader := ctx.Audio.AutomationPanel().GetResource(audio.ResKeyChallengeFader).(*audio.Fader)
 	fader.Transition(1.0, 0, audio.TimeDurationToSamples(time.Millisecond*200))
 }
 

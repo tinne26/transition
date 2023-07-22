@@ -12,6 +12,7 @@ import "github.com/tinne26/transition/src/audio"
 import "github.com/tinne26/transition/src/utils"
 import "github.com/tinne26/transition/src/text"
 import "github.com/tinne26/transition/src/game/clr"
+import "github.com/tinne26/transition/src/game/context"
 import "github.com/tinne26/transition/src/shaders"
 
 const TitleText  = "TRANSITION"
@@ -89,7 +90,7 @@ func New() *Title {
 	return title
 }
 
-func (self *Title) Update(soundscape *audio.Soundscape) error {
+func (self *Title) Update(ctx *context.Context) error {
 	// common update logic
 	self.stageElapsedTicks += 1
 	self.angleShift += 0.00056
@@ -114,8 +115,8 @@ func (self *Title) Update(soundscape *audio.Soundscape) error {
 		self.updateTitleTransitions()
 		
 		if self.stage == StageTitle {
-			if input.Trigger(input.ActionInteract) && self.stageElapsedTicks > 160 {
-				soundscape.PlaySFX(audio.SfxInteract)
+			if ctx.Input.Trigger(input.ActionInteract) && self.stageElapsedTicks > 160 {
+				ctx.Audio.PlaySFX(audio.SfxInteract)
 				self.setStage(StageTitleFadeOut)
 			}
 		} else { // self.stage == StageTitleFadeOut
@@ -137,8 +138,8 @@ func (self *Title) Update(soundscape *audio.Soundscape) error {
 		}
 
 		if self.stageOpacity >= 0.8 {
-			if input.Trigger(input.ActionInteract) && self.stageElapsedTicks > 160 {
-				soundscape.PlaySFX(audio.SfxInteract)
+			if ctx.Input.Trigger(input.ActionInteract) && self.stageElapsedTicks > 160 {
+				ctx.Audio.PlaySFX(audio.SfxInteract)
 				self.setStage(StageTextFadeOut)
 			}
 		}

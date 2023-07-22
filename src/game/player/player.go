@@ -11,6 +11,7 @@ import "github.com/tinne26/transition/src/input"
 import "github.com/tinne26/transition/src/utils"
 import "github.com/tinne26/transition/src/audio"
 import "github.com/tinne26/transition/src/project"
+import "github.com/tinne26/transition/src/game/context"
 import "github.com/tinne26/transition/src/game/level"
 import "github.com/tinne26/transition/src/game/level/block"
 import "github.com/tinne26/transition/src/game/u16"
@@ -72,11 +73,11 @@ func (self *Player) NotifySolvedSwordChallenge() {
 	self.transitionStage += 1
 }
 
-func (self *Player) SetIdleAt(centerX, floorY uint16, soundscape *audio.Soundscape) {
+func (self *Player) SetIdleAt(centerX, floorY uint16, ctx *context.Context) {
 	self.x = float64(centerX) - playerFrameWidth/2
 	self.y = float64(floorY) - (playerFrameHeight - 3)
 	self.orientation = HorzDirRight
-	self.setMotionState(MStIdle, AnimIdle, soundscape)
+	self.setMotionState(MStIdle, AnimIdle, ctx)
 }
 
 func (self *Player) SetBlockedForInteraction() {
@@ -95,9 +96,9 @@ func (self *Player) DebugStr() string {
 const DefaultJumpTicks = 26
 const WingJumpTicks = DefaultJumpTicks + 4
 
-func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, soundscape *audio.Soundscape) error {
+func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *context.Context) error {
 	// misc keys
-	if input.Trigger(input.ActionCenterCamera) {
+	if ctx.Input.Trigger(input.ActionCenterCamera) {
 		cam.RequireMustMatch()
 	}
 
@@ -114,8 +115,8 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 	self.sinceJumpTrigger += 1
 	self.sinceNoContactFall += 1
 	self.updateWallStickHacks()
-	self.anim.Update(soundscape)
-	self.detailAnim.Update(soundscape)
+	self.anim.Update(ctx.Audio)
+	self.detailAnim.Update(ctx.Audio)
 
 	// hacks to smooth steps on stairs
 	// (basically, a form of delayed position hacking, so we move
@@ -136,7 +137,7 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 			self.y += 2
 		}
 
-		if input.Trigger(input.ActionJump) {
+		if ctx.Input.Trigger(input.ActionJump) {
 			self.sinceJumpTrigger = 0
 		}
 		return nil
@@ -145,11 +146,11 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 	// deal with interaction block
 	if self.blockedForInteraction > 0 {
 		if self.anim != AnimInteract {
-			self.setMotionState(MStIdle, AnimInteract, soundscape)
+			self.setMotionState(MStIdle, AnimInteract, ctx)
 		}
 		self.blockedForInteraction -= 1
 		if self.blockedForInteraction == 0 {
-			self.setMotionState(MStIdle, AnimIdle, soundscape)
+			self.setMotionState(MStIdle, AnimIdle, ctx)
 		}
 		return nil
 	}	
@@ -158,15 +159,15 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 	var newX, newY float64 = self.x, self.y
 
 	// handle horizontal movement
-	horzDir := self.getHorzMov()
+	horzDir := self.getHorzMov(ctx)
 	if horzDir == HorzDirNone {
 		if self.motionStateCanStopGroundHorzMove() {
-			self.setMotionState(MStIdle, AnimIdle, soundscape)
+			self.setMotionState(MStIdle, AnimIdle, ctx)
 		}
 	} else if self.motionStateAllowsHorzMove() {
 		// apply new motion state triggers if relevant
 		if self.motionState == MStIdle {
-			self.setMotionState(MStMoving, AnimRun, soundscape)
+			self.setMotionState(MStMoving, AnimRun, ctx)
 		}
 
 		// apply movement to X position
@@ -176,27 +177,27 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 
 	// DEBUG ONLY (one pixel move)
 	if self.motionStateAllowsHorzMove() {
-		rightPix := input.Trigger(input.ActionOnePixelRight)
-		leftPix  := input.Trigger(input.ActionOnePixelLeft)
+		rightPix := ctx.Input.Trigger(input.ActionOnePixelRight)
+		leftPix  := ctx.Input.Trigger(input.ActionOnePixelLeft)
 		if rightPix { newX += 1.0 }
 		if leftPix  { newX -= 1.0 }
 		if rightPix || leftPix {
 			horzDir = self.orientation
 			if self.motionState == MStIdle {
-				self.setMotionState(MStMoving, AnimRun, soundscape)
+				self.setMotionState(MStMoving, AnimRun, ctx)
 			}
 		}
 	}
 
 	// handle jumping
-	jumping := input.Trigger(input.ActionJump)
+	jumping := ctx.Input.Trigger(input.ActionJump)
 	if !jumping && self.sinceJumpTrigger < 8 {
 		jumping = true
 	} else if jumping {
 		self.sinceJumpTrigger = 0
 	}
 	if jumping && self.motionStateAllowsJump() {
-		soundscape.PlaySFX(audio.SfxJump)
+		ctx.Audio.PlaySFX(audio.SfxJump)
 		self.sinceJumpTrigger = 99999
 
 		// common setup
@@ -210,11 +211,11 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 		}
 		switch self.motionState {
 		case MStJumping, MStFalling:
-			self.setMotionState(MStWingJump, AnimFall, soundscape)
+			self.setMotionState(MStWingJump, AnimFall, ctx)
 			self.jumpTicksGoal = WingJumpTicks
 			self.spentWingJump = true
 		case MStWallStick:
-			self.setMotionState(MStJumping, AnimInAir, soundscape)
+			self.setMotionState(MStJumping, AnimInAir, ctx)
 			self.wallStickAwayJumpLeft = 32
 			if self.orientation == HorzDirLeft {
 				self.orientation = HorzDirRight
@@ -222,13 +223,13 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 				self.orientation = HorzDirLeft
 			}
 		default:
-			self.setMotionState(MStJumping, AnimInAir, soundscape)
+			self.setMotionState(MStJumping, AnimInAir, ctx)
 		}
 	}
 
 	// handle letting go wall stick
-	if self.motionState == MStWallStick && input.Trigger(input.ActionDown) {
-		self.setMotionState(MStFalling, AnimFall, soundscape)
+	if self.motionState == MStWallStick && ctx.Input.Trigger(input.ActionDown) {
+		self.setMotionState(MStFalling, AnimFall, ctx)
 		self.x -= self.orientation.Sign()*1.0 // force slight distancing from wall
 		newX = self.x
 	}
@@ -249,15 +250,15 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 		} else if self.motionStateTicks < 36 {
 			newY += 0.1
 		} else {
-			self.setMotionState(MStFalling, AnimFall, soundscape)
+			self.setMotionState(MStFalling, AnimFall, ctx)
 			self.x -= self.orientation.Sign()*1.0 // force slight distancing from wall
 			newX = self.x
 		}
 	case MStJumping, MStWingJump:
-		speed := self.getJumpRaiseSpeed()
+		speed := self.getJumpRaiseSpeed(ctx)
 		newY -= speed
 		if speed == 0 {
-			self.setMotionState(MStFalling, AnimFall, soundscape)
+			self.setMotionState(MStFalling, AnimFall, ctx)
 		}
 
 		// handle wall stick jump separation
@@ -269,7 +270,7 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 
 	// refresh block flags with the new state
 	// (had to compute newX and newY first)
-	self.refreshBlockFlags(newX, newY)
+	self.refreshBlockFlags(newX, newY, ctx)
 
 	// prepare vars to check position against environment
 	xLimitReached := (int(self.x) == int(newX))
@@ -304,11 +305,11 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 					// TODO: consider fall damage or big impact reception.
 					// e.g. jump start y, or airMaxY vs current Y.
 					if self.x != newX {
-						self.setMotionState(MStMoving, AnimRun, soundscape)
-						self.anim.SkipIntro(soundscape)
+						self.setMotionState(MStMoving, AnimRun, ctx)
+						self.anim.SkipIntro(ctx.Audio)
 					} else {
-						self.setMotionState(MStIdle, AnimIdle, soundscape)
-						soundscape.PlaySFX(audio.SfxStep)
+						self.setMotionState(MStIdle, AnimIdle, ctx)
+						ctx.Audio.PlaySFX(audio.SfxStep)
 					}
 					yLimitReached = true
 					self.blockFlags &= ^block.FlagInertiaDown
@@ -332,7 +333,7 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 				if !self.inFloatyMotionState() {
 					yLimitReached = true
 					if self.anim != AnimTightFront1 {
-						self.setMotionState(MStIdle, AnimTightFront1, soundscape)
+						self.setMotionState(MStIdle, AnimTightFront1, ctx)
 					}
 				}
 			case block.ContactTightFront2:
@@ -343,7 +344,7 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 				if !self.inFloatyMotionState() {
 					yLimitReached = true
 					if self.anim != AnimTightFront2 {
-						self.setMotionState(MStIdle, AnimTightFront2, soundscape)
+						self.setMotionState(MStIdle, AnimTightFront2, ctx)
 					}
 				}
 			case block.ContactTightBack1:
@@ -354,7 +355,7 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 				if !self.inFloatyMotionState() {
 					yLimitReached = true
 					if self.anim != AnimTightBack1 {
-						self.setMotionState(MStIdle, AnimTightBack1, soundscape)
+						self.setMotionState(MStIdle, AnimTightBack1, ctx)
 					}
 				}
 			case block.ContactTightBack2:
@@ -365,7 +366,7 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 				if !self.inFloatyMotionState() {
 					yLimitReached = true
 					if self.anim != AnimTightBack2 {
-						self.setMotionState(MStIdle, AnimTightBack2, soundscape)
+						self.setMotionState(MStIdle, AnimTightBack2, ctx)
 					}
 				}
 			case block.ContactWallStick:
@@ -377,14 +378,14 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 
 				self.spentWingJump = false
 				self.spentWallStick = true
-				self.setMotionState(MStWallStick, AnimWallStick, soundscape)
+				self.setMotionState(MStWallStick, AnimWallStick, ctx)
 				self.removeAllBlockFlagInertias()
 				xLimitReached, yLimitReached = true, true
 			case block.ContactClonk:
 				if self.motionState != MStFalling {
 					self.blockFlags &= ^block.FlagInertiaUp
 					yLimitReached = true
-					self.setMotionState(MStFalling, AnimFall, soundscape)
+					self.setMotionState(MStFalling, AnimFall, ctx)
 				}
 			case block.ContactSideBlock:
 				xLimitReached = true
@@ -436,8 +437,8 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 				
 				// adjust state and animation if necessary
 				if self.motionState != MStMoving {
-					self.setMotionState(MStMoving, AnimRun, soundscape)
-					self.anim.SkipIntro(soundscape)
+					self.setMotionState(MStMoving, AnimRun, ctx)
+					self.anim.SkipIntro(ctx.Audio)
 				}
 				xLimitReached, yLimitReached = true, true
 			case block.ContactDeath:
@@ -456,7 +457,7 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, sounds
 		// switch to falling if relevant on lack of contact
 		if self.canSlipIntoFall() && floorContact == block.ContactNone {
 			self.sinceNoContactFall = 1
-			self.setMotionState(MStFalling, AnimFall, soundscape)
+			self.setMotionState(MStFalling, AnimFall, ctx)
 		}
 
 		// stop or continue
@@ -584,13 +585,13 @@ func (self *Player) GetCameraTargetPos() (float64, float64) {
 
 // --- block flags ---
 
-func (self *Player) refreshBlockFlags(newX, newY float64) {
+func (self *Player) refreshBlockFlags(newX, newY float64, ctx *context.Context) {
 	self.blockFlags = 0
 	if newX > self.x { self.blockFlags |= block.FlagInertiaRight }
 	if newX < self.x { self.blockFlags |= block.FlagInertiaLeft  }
 	if newY > self.y { self.blockFlags |= block.FlagInertiaDown  } // a.k.a falling
 	if newY < self.y { self.blockFlags |= block.FlagInertiaUp    }
-	if input.Pressed(input.ActionDown) {
+	if ctx.Input.Pressed(input.ActionDown) {
 		self.blockFlags |= block.FlagDownPressed
 	}
 	if self.reversingPlants {
@@ -620,20 +621,20 @@ func (self *Player) updateWallStickHacks() {
 	}
 }
 
-func (self *Player) setMotionState(state MotionState, anim *Animation, soundscape *audio.Soundscape) {
+func (self *Player) setMotionState(state MotionState, anim *Animation, ctx *context.Context) {
 	//fmt.Printf("setting motion state %s, anim %s\n", state.String(), anim.Name())
 	self.motionState = state // always possible due to level design
 	self.motionStateTicks = 0
 	if anim != self.anim {
 		self.anim = anim
-		self.anim.Rewind(soundscape)
+		self.anim.Rewind(ctx.Audio)
 	}
 	
 	// hardcoded detail anim handling, of course
 	switch state {
 	case MStWingJump:
 		self.detailAnim = AnimDetailJump
-		self.detailAnim.Rewind(soundscape)
+		self.detailAnim.Rewind(ctx.Audio)
 	// case MStDash:
 	// 	self.detailAnim = AnimDetailDash
 	//    self.detailAnim.Rewind()
@@ -681,8 +682,8 @@ func (self *Player) motionStateCanStopGroundHorzMove() bool {
 	}
 }
 
-func (self *Player) getHorzMov() HorzDir {
-	action, pressed := input.LastPressed(input.ActionMoveRight, input.ActionMoveLeft)
+func (self *Player) getHorzMov(ctx *context.Context) HorzDir {
+	action, pressed := ctx.Input.LastPressed(input.ActionMoveRight, input.ActionMoveLeft)
 	if !pressed { return HorzDirNone }
 	switch action {
 	case input.ActionMoveLeft : return HorzDirLeft
@@ -709,9 +710,9 @@ func (self *Player) getHorzMovSpeed() float64 {
 	return 1.6 // default value
 }
 
-func (self *Player) getJumpRaiseSpeed() float64 {
+func (self *Player) getJumpRaiseSpeed(ctx *context.Context) float64 {
 	if self.motionStateTicks >= self.jumpTicksGoal { return 0.0 }
-	if !input.Pressed(input.ActionJump) {
+	if !ctx.Input.Pressed(input.ActionJump) {
 		goal := uint32(DefaultJumpTicks)
 		if self.motionState == MStWingJump {
 			goal = uint32(WingJumpTicks)
