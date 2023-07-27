@@ -1,5 +1,6 @@
 package player
 
+import "image"
 import "math"
 import "image/color"
 import "strconv"
@@ -15,6 +16,7 @@ import "github.com/tinne26/transition/src/game/context"
 import "github.com/tinne26/transition/src/game/level"
 import "github.com/tinne26/transition/src/game/level/block"
 import "github.com/tinne26/transition/src/game/u16"
+import "github.com/tinne26/transition/src/game/clr"
 
 type Player struct {
 	x, y float64
@@ -42,7 +44,6 @@ type Player struct {
 	pendingSlipIsHorz bool
 
 	powerConsumed float64 // from 0 to 1
-	transitionStage uint8 // from 0 to 4 or so?
 	reversingSelf bool
 	reversingPlants bool
 	reversingGhosts bool
@@ -67,10 +68,6 @@ func New() *Player {
 		sinceJumpTrigger: 99999,
 	}
 	return player
-}
-
-func (self *Player) NotifySolvedSwordChallenge() {
-	self.transitionStage += 1
 }
 
 func (self *Player) SetIdleAt(centerX, floorY uint16, ctx *context.Context) {
@@ -153,7 +150,22 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *c
 			self.setMotionState(MStIdle, AnimIdle, ctx)
 		}
 		return nil
-	}	
+	}
+
+	// TODO: hack for testing power bar
+	if ctx.Input.Pressed(input.ActionOutReverse) {
+		self.powerConsumed += 0.002
+		if self.powerConsumed > 1.0 {
+			self.powerConsumed = 1.0
+			// ...
+		}
+	} else {
+		self.powerConsumed -= 0.002
+		if self.powerConsumed < 0 {
+			self.powerConsumed = 0.0
+			// ...
+		}
+	}
 
 	// predeclare final position variables
 	var newX, newY float64 = self.x, self.y
@@ -561,10 +573,41 @@ func (self *Player) Draw(projector *project.Projector) {
 	}
 }
 
-func DrawUI(canvas *ebiten.Image) {
-	// ... hearts, transitionStage, powerConsumed
-	// TODO: not here, most info will be in game/state anyway.
-	//       ok, power consumed is actually relevant.
+const PowerBarLength = 82
+const PowerBarHeight = 2
+const PowerBarPad = 8
+func (self *Player) DrawUI(projector *project.Projector, ctx *context.Context) {
+	opts := ebiten.DrawImageOptions{}
+	frameWidth := UIPowerFrame.Bounds().Dx()
+	opts.GeoM.Translate(float64(projector.LogicalWidth - frameWidth - PowerBarPad), PowerBarPad)
+	projector.LogicalCanvas.DrawImage(UIPowerFrame, &opts)
+
+	i := int(ctx.State.TransitionStage)
+	bounds := UICorruptionStages.Bounds()
+	sw, sh := bounds.Dx()/6, bounds.Dy()
+	img := UICorruptionStages.SubImage(image.Rect(i*sw, 0, (i + 1)*sw, sh)).(*ebiten.Image)
+	opts.GeoM.Translate(float64(frameWidth - sw - 5), float64(5))
+	projector.LogicalCanvas.DrawImage(img, &opts)
+
+	// draw power bar
+	x, y := projector.LogicalWidth - frameWidth - PowerBarPad + 21, PowerBarPad + 14
+	powerBarRect := image.Rect(x, y, x + PowerBarLength, y + PowerBarHeight)
+	projector.LogicalCanvas.SubImage(powerBarRect).(*ebiten.Image).Fill(clr.WingsDark)
+	
+}
+
+func (self *Player) DrawPowerBarFill(projector *project.Projector) {
+	frameWidth := UIPowerFrame.Bounds().Dx()
+	x, y := projector.LogicalWidth - frameWidth - PowerBarPad + 21, PowerBarPad + 14
+	minX := float64(x + PowerBarLength) - (1.0 - self.powerConsumed)*PowerBarLength
+	minY := float64(y)
+	maxX := float64(x + PowerBarLength)
+	maxY := float64(y + PowerBarHeight)
+	
+	scale := float64(projector.ScalingFactor)
+	minX, minY, maxX, maxY = minX*scale, minY*scale, maxX*scale, maxY*scale
+	remainingBarRect := image.Rect(int(minX), int(minY), int(maxX), int(maxY))
+	projector.ActiveCanvas.SubImage(remainingBarRect).(*ebiten.Image).Fill(clr.WingsText)
 }
 
 // ---- secondary public functions ----

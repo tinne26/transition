@@ -8,6 +8,13 @@ import "strings"
 import "github.com/hajimehoshi/ebiten/v2"
 
 import "github.com/tinne26/transition/src/debug"
+import "github.com/tinne26/transition/src/input"
+import "github.com/tinne26/transition/src/audio"
+import "github.com/tinne26/transition/src/utils"
+import "github.com/tinne26/transition/src/shaders"
+import "github.com/tinne26/transition/src/camera"
+import "github.com/tinne26/transition/src/project"
+import "github.com/tinne26/transition/src/text"
 import "github.com/tinne26/transition/src/game/player"
 import "github.com/tinne26/transition/src/game/level"
 import "github.com/tinne26/transition/src/game/level/block"
@@ -19,12 +26,6 @@ import "github.com/tinne26/transition/src/game/hint"
 import "github.com/tinne26/transition/src/game/clr"
 import "github.com/tinne26/transition/src/game/sword"
 import "github.com/tinne26/transition/src/game/title"
-import "github.com/tinne26/transition/src/project"
-import "github.com/tinne26/transition/src/camera"
-import "github.com/tinne26/transition/src/audio"
-import "github.com/tinne26/transition/src/input"
-import "github.com/tinne26/transition/src/utils"
-import "github.com/tinne26/transition/src/text"
 
 // TODO: while on main menu, return ebiten.Termination if going to "save and quit"
 //       (or maybe stay always saved? autosave on progress / change?)
@@ -53,11 +54,16 @@ type Game struct {
 	ctx *context.Context
 	swordChallenge *sword.Challenge
 	titleScreen *title.Title
-	pendingResponse any
+	
+	// experimental graphical effects and shaders
+	selfModGfxPipe *shaders.SelfModGfxPipe
+	gfxAnim *shaders.Animation
 }
 
 func New(filesys fs.FS) (*Game, error) {
 	err := player.LoadAnimations(filesys)
+	if err != nil { return nil, err }
+	err = player.LoadUIGraphics(filesys)
 	if err != nil { return nil, err }
 	
 	ctx, err := context.NewContext(filesys)
@@ -82,9 +88,18 @@ func New(filesys fs.FS) (*Game, error) {
 		background: bckg.New(),
 		projector: project.NewProjector(640, 360),
 		ctx: ctx,
-		titleScreen: title.New(), // nil, //
+		titleScreen: title.New(),
 		optsFancyCamera: true, // I keep it here mostly for testing
+		
+		// experimental graphical effects
+		selfModGfxPipe: shaders.NewSelfModGfxPipe(),
 	}
+
+	// hacks
+	if utils.OsArgReceived("--notitle") {
+		game.titleScreen = nil
+	}
+	
 	game.fader.SetBlackness(1.0)
 	if game.titleScreen == nil { game.fader.FadeTo(0.0) }
 	game.player.SetIdleAt(entry.X, entry.Y, game.ctx)
@@ -160,7 +175,7 @@ func (self *Game) Update() error {
 				ebitengineRef = ebitengineRef || strings.Contains(line, "HOSHI")
 			}
 			if ebitengineRef {
-				self.level.GetBackMasks().Add(bckg.MaskEbi, 0.2)
+				self.level.GetBackMasks().Add(bckg.MaskEbi, 0.3)
 			}
 
 			self.longText = nil
@@ -182,20 +197,12 @@ func (self *Game) Update() error {
 				self.swordChallenge = nil
 				self.camera.SetTarget(self.player)
 				self.player.UnblockInteractionAfter(8)
-				self.player.NotifySolvedSwordChallenge()
 				preType  := block.TypeDecorLargeSwordActive
 				postType := block.TypeDecorLargeSwordAbsorbed
 				self.level.ReplaceNearestBehindDecor(x, y, preType, postType)
 				self.ctx.State.TransitionStage += 1
 			}
-			return nil
 		}
-	}
-
-	if self.pendingResponse != nil {
-		self.HandleTriggerResponse(self.pendingResponse)
-		self.pendingResponse = nil
-		return nil
 	}
 
 	err = self.player.Update(self.camera, self.level, self.ctx)
@@ -213,6 +220,14 @@ func (self *Game) Update() error {
 		}
 	}
 
+	// experimental graphical effects
+	if self.gfxAnim != nil {
+		self.gfxAnim.Update()
+		if self.gfxAnim.Done() {
+			self.gfxAnim = nil
+		}
+	}
+
 	// detect player death from falling and/or update fader
 	lim := self.level.GetLimits()
 	if playerRect.Min.Y > lim.Max.Y + 200 {
@@ -221,6 +236,7 @@ func (self *Game) Update() error {
 		for _, trigger := range self.levelTriggers { trigger.OnDeath(self.ctx) }
 		self.respawnPlayer()
 		self.camera.Center()
+		self.gfxAnim = shaders.AnimRespawn.Restart()
 	}
 
 	return nil
@@ -322,30 +338,29 @@ func (self *Game) Draw(canvas *ebiten.Image) {
 	// self.camera.DebugDraw(self.projector.LogicalCanvas)
 	// self.projector.ProjectLogical(0, 0)
 
-	// draw text and UI
-	if self.textMessage != nil {
-		self.projector.LogicalCanvas.Clear()
-		text.Draw(self.projector.LogicalCanvas, 320, 324, self.textMessage)
-		self.projector.ProjectLogical(0, 0)
-		self.textMessage = nil // dismiss, we use stuff only once cause we are wasteful
+	// gfx
+	if self.gfxAnim != nil {
+		self.selfModGfxPipe.SetActiveCanvas(self.projector.ActiveCanvas)
+		self.gfxAnim.EachShaderWithOpts(func(shader *ebiten.Shader, opts *ebiten.DrawTrianglesShaderOptions) {
+			self.selfModGfxPipe.DrawShader(shader, opts)
+		})
+		self.selfModGfxPipe.Flush()
 	}
 
+	// draw UI, text, etc
+	self.projector.LogicalCanvas.Clear()
+	self.player.DrawUI(self.projector, self.ctx)
+	if self.textMessage != nil {
+		text.Draw(self.projector.LogicalCanvas, 320, 324, self.textMessage)
+		self.textMessage = nil // dismiss, we use stuff only once cause we are wasteful
+	}
+	self.projector.ProjectLogical(0, 0)
+	self.player.DrawPowerBarFill(self.projector)
+	
 	// debug draws
 	debug.Draw(self.projector.ActiveCanvas)
 
-	// fade in / out
-	// TODO: move most of this stuff into the logical update, handle 
-	//       only a single alpha overlay value.
-	// if playerRect.Max.Y > limits.Max.Y {
-	// 	diff := playerRect.Max.Y - limits.Max.Y
-	// 	alpha := float32(diff)/200.0
-	// 	if alpha > 1.0 { alpha = 1.0 }
-	// 	utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, alpha)
-	// } else if self.forcefulFadeOutLevel > 0 {
-	// 	utils.FillOverF32(self.projector.ActiveCanvas, 0, 0, 0, float32(self.forcefulFadeOutLevel))
-	// } else if self.fadeInTicksLeft > 0 {
-	// 	self.drawFadeIn()
-	// }
+	// screen fade in / out
 	self.fader.Draw(self.projector.ActiveCanvas)
 
 	// draw long text if we have any

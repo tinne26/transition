@@ -36,7 +36,6 @@ func (self *TrigSwordChallenge) Update(playerRect u16.Rect, ctx *context.Context
 			ctx.Audio.PlaySFX(audio.SfxInteract)
 			ctx.Audio.Crossfade(audio.BgmChallenge, time.Millisecond*1800, time.Millisecond*900, time.Millisecond*2700)
 			ctx.State.Switches[self.doneSwitch] = true
-			ctx.State.TransitionStage += 1 // TODO: this is most definitely too early
 			return self.challenge, nil
 		}
 		return self.ihint, nil

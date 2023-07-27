@@ -82,7 +82,7 @@ func LoadAnimations(filesys fs.FS) error {
 
 	// wall stick
 	AnimWallStick = NewAnimation("AnimWallStick")
-	AnimWallStick.AddFrame(playerFramePairAt(2, 4), 60)
+	AnimWallStick.AddFrame(playerFramePairAt(3, 4), 60)
 
 	// in air frames
 	AnimInAir = NewAnimation("AnimInAir")
@@ -101,7 +101,7 @@ func LoadAnimations(filesys fs.FS) error {
 
 	// interaction
 	AnimInteract = NewAnimation("AnimInteract")
-	AnimInteract.AddFrame(playerFramePairAt(2, 5), 60)
+	AnimInteract.AddFrame(playerFramePairAt(4, 0), 60)
 
 	// ---- wing and tail animations ----
 	detailWingsSpritesheet, err = utils.LoadFsEbiImage(filesys, "assets/graphics/creatures/wing_anims.png")

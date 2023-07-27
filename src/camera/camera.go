@@ -135,7 +135,9 @@ func (self *Camera) Update() error {
 		}
 	}
 	self.xtargetPrevX = targetX
-	targetX += self.xCarrotShift
+	if !self.mustMatchTarget {
+		targetX += self.xCarrotShift
+	}
 	
 	// compute camera movement with distance to target, speeds and stuff
 	xdist, ydist = targetX - self.x, targetY - self.y
@@ -179,19 +181,21 @@ func (self *Camera) Update() error {
 	// snap to integer position if possible / still
 	sameX := (abs(self.xtargetPrevX - self.x) < 0.001)
 	if (sameX || self.xtargetDir == 0) && abs(targetY - self.y) < 0.001 {
-		if self.mustMatchTarget && sameX {
-			self.mustMatchTarget = false
-		}
-		
-		if targetX >= self.x {
-			self.x = float64(int(self.x))
+		if self.mustMatchTarget {
+			if sameX {
+				self.mustMatchTarget = false
+			}
 		} else {
-			self.x = float64(int(self.x + 0.99999))
-		}
-		if targetY >= self.y {
-			self.y = float64(int(self.y))
-		} else {
-			self.y = float64(int(self.y + 0.99999))
+			if targetX >= self.x {
+				self.x = float64(int(self.x))
+			} else {
+				self.x = float64(int(self.x + 0.99999))
+			}
+			if targetY >= self.y {
+				self.y = float64(int(self.y))
+			} else {
+				self.y = float64(int(self.y + 0.99999))
+			}
 		}
 	}
 

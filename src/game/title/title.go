@@ -182,7 +182,7 @@ func (self *Title) Draw(logicalCanvas *ebiten.Image) {
 		// determine contents opacity
 		opacity := math.Pow(self.stageOpacity, 2.2) // *
 		// * I don't do gamma correction everywhere, but in some parts it's
-		//   kinda visually annoying, so I have to fix it for my sanity...
+		//   kinda visually annoying, so I have to fix it for my own sanity...
 
 		// draw shadow and title render
 		ox, oy := (canvasWidth - titleWidth)/2, phiThirdInt(canvasHeight) - titleHeight/2
