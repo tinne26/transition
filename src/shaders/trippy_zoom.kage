@@ -1,0 +1,32 @@
+package main
+
+var ReplicaDistFactor float
+
+const BlurSamples = 8
+
+func Fragment(_ vec4, samplerTexelCoords vec2, _ vec4) vec4 {
+	normSrcTexelCoords := NormalizeSrcTexelCoords(samplerTexelCoords)
+	srcOrigin, srcSize := imageSrcRegionOnTexture()
+	
+	var sum vec4
+	unitVec := -normalize(vec2(normSrcTexelCoords - 0.5))
+	ctrDist := distance(normSrcTexelCoords, vec2(0.5))
+	sumBudget := float(BlurSamples)
+	for i := float(0); i < BlurSamples; i++ {
+		coords := normSrcTexelCoords + ReplicaDistFactor*ctrDist*(unitVec*i)/BlurSamples
+		sampleBudget := sumBudget*0.5
+		sumBudget -= sampleBudget
+		sum += imageSrc0UnsafeAt(ProjectNormTexelCoords(coords))*sumBudget
+	}
+	return sum/BlurSamples
+}
+
+func NormalizeSrcTexelCoords(texCoords vec2) vec2 {
+	srcOrigin, srcSize := imageSrcRegionOnTexture()
+	return (texCoords - srcOrigin)/srcSize
+}
+
+func ProjectNormTexelCoords(normTexCoords vec2) vec2 {
+	srcOrigin, srcSize := imageSrcRegionOnTexture()
+	return normTexCoords*srcSize + srcOrigin
+}

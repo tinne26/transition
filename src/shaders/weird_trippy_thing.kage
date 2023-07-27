@@ -1,0 +1,14 @@
+package main
+
+func Fragment(_ vec4, samplerTexelCoords vec2, _ vec4) vec4 {
+	normSrcTexelCoords := NormalizeSrcTexelCoords(samplerTexelCoords)
+	srcOrigin, srcSize := imageSrcRegionOnTexture()
+	
+	var sum vec4
+	unitVec := -normalize(vec2(normSrcTexelCoords - 0.5))
+	for i := float(0); i < BlurSamples; i++ {	
+		coords := normSrcTexelCoords + (unitVec*i)/BlurSamples
+		sum += imageSrc0UnsafeAt(ProjectNormTexelCoords(coords))
+	}
+	return sum/BlurSamples
+}

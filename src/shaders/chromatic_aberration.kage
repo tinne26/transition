@@ -1,0 +1,34 @@
+package main
+
+var HorzAberrationMinRange float // suggested value: 0.002
+var HorzAberrationMaxRange float // suggested values: 0.0, 0.02
+var BlurSofteningFactor    float // suggested value: 1.12
+
+func Fragment(_ vec4, samplerTexelCoords vec2, _ vec4) vec4 {
+	normSrcTexelCoords := NormalizeSrcTexelCoords(samplerTexelCoords)
+	srcOrigin, srcSize := imageSrcRegionOnTexture()
+	
+	const epsilon = 1.0/65536
+	samplerMinTexelX := srcOrigin.x
+	samplerMaxTexelX := samplerMinTexelX + (1.0*srcSize.x - epsilon)
+
+	distToCenter := distance(0.5, normSrcTexelCoords.x) // you may also use vec2(0.5), normSrcTexelCoords
+	minRange := min(HorzAberrationMinRange, HorzAberrationMaxRange)
+	horzDeltaRange := HorzAberrationMaxRange - minRange
+	blurDist := clamp(minRange + horzDeltaRange*distToCenter, -0.333, 0.333)
+	blurDist  = pow(blurDist, BlurSofteningFactor)
+	
+	rx := max(samplerTexelCoords.x - blurDist*srcSize.x, samplerMinTexelX)
+	bx := min(samplerTexelCoords.x + blurDist*srcSize.x, samplerMaxTexelX)
+	rTexelCoords := vec2(rx, samplerTexelCoords.y)
+	bTexelCoords := vec2(bx, samplerTexelCoords.y)
+	baseColor :=  imageSrc0UnsafeAt(samplerTexelCoords)
+	baseColor.r = min(imageSrc0UnsafeAt(rTexelCoords).r, baseColor.a)
+	baseColor.b = min(imageSrc0UnsafeAt(bTexelCoords).b, baseColor.a)
+	return baseColor
+}
+
+func NormalizeSrcTexelCoords(texCoords vec2) vec2 {
+	srcOrigin, srcSize := imageSrcRegionOnTexture()
+	return (texCoords - srcOrigin)/srcSize
+}

@@ -1,0 +1,68 @@
+package main
+
+// Note: instead of using an ellipse, we could also round the viewport
+//       rect, for example with typical sdf rounding (the outer perimeter
+//       shapes become more round the further we go). could also combine
+//       both with max(ellipseVignette, rectVignette) or somethin'
+
+var MinRadius float // suggested value: 0.2
+var MaxRadius float // suggested value: 1.1
+var MixLevel float // suggested value: 1.0
+
+func Fragment(_ vec4, texCoord vec2, _ vec4) vec4 {
+	const falloffSoftness = 1.8 // between 1.0 and 8.0
+	const bwActive = false // set to false for regular vignette
+
+	minRadius := min(MinRadius, MaxRadius)
+	maxRadius := MaxRadius
+
+	normSrcTexelCoords := NormalizeSrcTexelCoords(texCoord)
+	distToCenter := distance(vec2(0.5, 0.5), normSrcTexelCoords)
+	vignette := smoothstep(minRadius, maxRadius, distToCenter)
+	vignette  = pow(vignette, 1.0/2.2) // gamma correct and invert
+	vignette  = clamp(pow(vignette, falloffSoftness), 0, 1)*MixLevel
+	baseColor := imageSrc0UnsafeAt(texCoord)
+
+	if bwActive == true {
+		// bw on screen edges (elliptical)
+		return bwByFactor(baseColor, vignette)
+	} else {
+		// simple vignette (elliptical)
+		return vec4(max(baseColor.rgb - vec3(vignette), 0), baseColor.a)
+	}
+}
+
+func NormalizeSrcTexelCoords(texCoord vec2) vec2 {
+	srcOrigin, srcSize := imageSrcRegionOnTexture()
+	return (texCoord - srcOrigin)/srcSize
+}
+
+func bwByFactor(color vec4, bwFactor float) vec4 {
+	l := lightness(color)*color.a
+	return mix(color, vec4(l, l, l, color.a), bwFactor)
+}
+
+func lightness(color vec4) float {
+	lum := luminance(color)
+	var light float
+	if lum <= 0.008856 {
+		light = lum*903.3
+	} else {
+		light = pow(lum, 1.0/3.0)*116 - 16
+	}
+
+	return light/100.0
+}
+
+func luminance(color vec4) float {
+	r, g, b := linearize(color.r), linearize(color.g), linearize(color.b)
+	return 0.2126*r + 0.7152*g + 0.0722*b
+}
+
+func linearize(colorChan float) float {
+	if colorChan <= 0.04045 {
+		return colorChan/12.92
+	} else {
+		return pow((colorChan + 0.055)/1.055, 2.4)
+	}
+}

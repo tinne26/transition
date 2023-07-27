@@ -1,0 +1,28 @@
+package main
+
+const RadialBlurSamples = 16
+
+var RadialBlurAmount float
+
+func Fragment(_ vec4, samplerTexelCoords vec2, _ vec4) vec4 {
+	normSrcTexelCoords := NormalizeSrcTexelCoords(samplerTexelCoords)
+	
+	var sum vec4
+	unitVec := -normalize(vec2(normSrcTexelCoords - 0.5))
+	ctrDist := distance(normSrcTexelCoords, vec2(0.5))
+	for i := float(1); i <= RadialBlurSamples; i++ {
+		coords := normSrcTexelCoords + RadialBlurAmount*0.1*ctrDist*(unitVec*i)/RadialBlurSamples
+		sum += imageSrc0UnsafeAt(ProjectNormTexelCoords(coords))
+	}
+	return sum/RadialBlurSamples
+}
+
+func NormalizeSrcTexelCoords(texCoords vec2) vec2 {
+	srcOrigin, srcSize := imageSrcRegionOnTexture()
+	return (texCoords - srcOrigin)/srcSize
+}
+
+func ProjectNormTexelCoords(normTexCoords vec2) vec2 {
+	srcOrigin, srcSize := imageSrcRegionOnTexture()
+	return normTexCoords*srcSize + srcOrigin
+}

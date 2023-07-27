@@ -1,0 +1,9 @@
+package main
+
+var HighlightLevel float // suggested values: 1.0, 0.5
+
+func Fragment(_ vec4, texCoord vec2, _ vec4) vec4 {
+	color := imageSrc0UnsafeAt(texCoord)
+	if color.a == 1.0 { return color }
+	return mix(color, vec4(1.0, 0.0, 1.0, 1.0), HighlightLevel)
+}
