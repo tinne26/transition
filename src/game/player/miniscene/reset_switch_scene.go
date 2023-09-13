@@ -25,6 +25,7 @@ const (
 	resetSwitchStageInitConsumption
 	resetSwitchStageHolding
 	resetSwitchStageHitFloor
+	resetSwitchStageOnDesistHold
 	resetSwitchStageOnFloorHold
 	resetSwitchStagePreUnblockWait
 	resetSwitchStageEndOK
@@ -69,6 +70,11 @@ func (self *ResetSwitchScene) Update(ctx *context.Context, cam *camera.Camera, p
 		return comm.NewActionSetPowerConsumption(0.003), nil
 	case resetSwitchStageHolding:
 		self.holdTicksLeft -= 1
+		if !ctx.Input.Pressed(input.ActionOutReverse) {
+			self.stage = resetSwitchStageOnDesistHold
+			return comm.NewActionSetPowerConsumption(0), nil
+		}
+
 		if self.holdTicksLeft == 0 { // success!
 			self.stage = resetSwitchStageEndOK
 			return comm.NewActionSetPowerConsumption(0), nil
@@ -76,13 +82,22 @@ func (self *ResetSwitchScene) Update(ctx *context.Context, cam *camera.Camera, p
 			self.stage = resetSwitchStageHitFloor
 			return comm.NewActionSetPowerConsumption(0), nil
 		}
-
-		// TODO: release key handling
-		// ...
 	case resetSwitchStageHitFloor:
 		self.stage = resetSwitchStageOnFloorHold
 		self.floorWaitLeft = refFloorTicks
 		return motion.NewPair(motion.Idle, motion.AnimFallen), nil
+	case resetSwitchStageOnDesistHold:
+		if playerInfo.MotionShot.Animation == motion.AnimInteract {
+			return motion.NewPair(motion.Idle, motion.AnimIdle), nil
+		}
+
+		if self.holdTicksLeft < refHoldTicks {
+			self.holdTicksLeft += 1
+		}
+		
+		if self.holdTicksLeft == refHoldTicks {
+			self.stage = resetSwitchStageUnblock
+		}
 	case resetSwitchStageOnFloorHold:
 		if self.floorWaitLeft > 0 {
 			self.floorWaitLeft -= 1
@@ -104,27 +119,22 @@ func (self *ResetSwitchScene) Update(ctx *context.Context, cam *camera.Camera, p
 			self.stage = resetSwitchStageUnblock
 		}
 	case resetSwitchStageEndOK:
-		switch self.holdTicksLeft {
+		self.holdTicksLeft += 1
+		switch self.holdTicksLeft - 1 {
 		case 0:
-			self.holdTicksLeft += 1
 			shaders.AnimSetRespawn.Restart()
 			return shaders.AnimSetRespawn, nil
 		case 1:
-			self.holdTicksLeft += 1
 			return motion.NewPair(motion.Idle, motion.AnimIdle), nil
 		case 9:
-			self.holdTicksLeft += 1
 			ctx.Audio.PlaySFX(audio.SfxObtain)
 		case 11:
-			self.holdTicksLeft += 1
 			return flash.New(utils.RescaleAlphaRGBA(clr.Permanence, 128), 6, 6), nil
 		case 12:
-			self.holdTicksLeft += 1
 			self.stage = resetSwitchStageUnblock
 			return self.key, nil
 		default:
 			// (nothing, just wait)
-			self.holdTicksLeft += 1
 		}
 	case resetSwitchStageUnblock:
 		return overFlagUnblockPlayer.withUnblockAfter(8), nil
