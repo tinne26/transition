@@ -1,10 +1,10 @@
 package game
 
 import "github.com/tinne26/transition/src/game/level"
-import "github.com/tinne26/transition/src/game/level/lvlkey"
 import "github.com/tinne26/transition/src/game/hint"
 import "github.com/tinne26/transition/src/game/trigger"
 import "github.com/tinne26/transition/src/game/sword"
+import "github.com/tinne26/transition/src/game/player/miniscene"
 import "github.com/tinne26/transition/src/text"
 
 func (self *Game) HandleTriggerResponse(response any) {
@@ -13,13 +13,6 @@ func (self *Game) HandleTriggerResponse(response any) {
 		self.textMessage = typedResponse
 	case hint.Hint:
 		self.activeHint = &typedResponse
-	case lvlkey.EntryKey:
-		// changing savepoint key
-		key := typedResponse
-		lvl, _ := level.GetEntryPoint(key)
-		lvl.DisableSavepoints()
-		lvl.EnableSavepoint(key)
-		self.player.UnblockInteractionAfter(16)
 	case trigger.Transfer:
 		lvl, pt := level.GetEntryPoint(typedResponse.Key)
 		self.transferPlayer(lvl, pt)
@@ -37,6 +30,12 @@ func (self *Game) HandleTriggerResponse(response any) {
 		self.swordChallenge = challenge
 		self.camera.SetStaticTarget(float64(challenge.X), float64(challenge.Y))
 		self.camera.RequireMustMatch()
+	case miniscene.Scene:
+		self.mini = typedResponse
+		self.player.SetBlockedForInteraction()
+	case trigger.SwitchPoint:
+		self.mini = miniscene.NewResetSwitchScene(typedResponse.X, typedResponse.Y, typedResponse.Key)
+		self.player.SetBlockedForInteraction()
 	default:
 		panic(response)
 	}

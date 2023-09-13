@@ -3,6 +3,7 @@ package trigger
 import "github.com/tinne26/transition/src/game/context"
 import "github.com/tinne26/transition/src/game/level/lvlkey"
 import "github.com/tinne26/transition/src/game/u16"
+import "github.com/tinne26/transition/src/game/player/motion"
 
 var _ Trigger = (*TrigLevelTransfer)(nil)
 
@@ -43,16 +44,16 @@ func NewLevelTransfer(x, y uint16, dir TransferDir, entryKey lvlkey.EntryKey) Tr
 	}
 }
 
-func (self *TrigLevelTransfer) Update(playerRect u16.Rect, _ *context.Context) (any, error) {
-	if !self.area.Overlap(playerRect) { return nil, nil }
+func (self *TrigLevelTransfer) Update(player motion.Shot, _ *context.Context) (any, error) {
+	if !self.area.Overlap(player.Rect) { return nil, nil }
 
 	switch self.dir {
 	case RightTransfer:
-		if playerRect.Max.X >= self.area.Max.X { return self.trans, nil }
-		return float64(playerRect.Max.X - self.area.Min.X)/float64(self.area.Max.X - self.area.Min.X), nil
+		if player.Rect.Max.X >= self.area.Max.X { return self.trans, nil }
+		return float64(player.Rect.Max.X - self.area.Min.X)/float64(self.area.Max.X - self.area.Min.X), nil
 	case LeftTransfer:
-		if playerRect.Min.X <= self.area.Min.X { return self.trans, nil }
-		return float64(self.area.Max.X - playerRect.Min.X)/float64(self.area.Max.X - self.area.Min.X), nil
+		if player.Rect.Min.X <= self.area.Min.X { return self.trans, nil }
+		return float64(self.area.Max.X - player.Rect.Min.X)/float64(self.area.Max.X - self.area.Min.X), nil
 	default:
 		panic(self.dir)
 	}

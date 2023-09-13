@@ -21,7 +21,7 @@ func NewSwitchSaveTrigger(saveBlock *block.Block, entry lvlkey.EntryKey) trigger
 	return trigger.NewSwitchSave(		
 		u16.NewRect(saveBlock.X - Hop*1, y - 1, saveBlock.Right() + Hop*1, y + 1),
 		entry,
-		hint.NewHint(hint.TypeReverse, saveBlock.CenterX() - 3, saveBlock.Y - 2),
+		hint.NewHint(hint.TypeDisrupt, saveBlock.CenterX() - 3, saveBlock.Y - 2),
 	)
 }
 

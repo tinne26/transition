@@ -1,0 +1,31 @@
+package main
+
+var DiskRGB vec3
+var DiskRadius float
+var DiskOpacity float
+var EdgeSize float
+var Center vec2
+
+const AspectRatio = 16.0/9.0
+const Pi = 3.141592
+
+func Fragment(position vec4, _ vec2, _ vec4) vec4 {
+	unitCoords := position.xy/imageDstTextureSize()
+	origin, size := imageDstRegionOnTexture()
+	unitCoords -= origin
+	unitCoords /= size
+
+	// compensate aspect ratio so we still have a circle, not an oval
+	unitCoords.x = (unitCoords.x - 0.5)*AspectRatio + 0.5
+
+	// compensate aspect ratio for the center position too, otherwise
+	// we can't compare it with the compensated unitCoords
+	relCenter := vec2((Center.x - 0.5)*AspectRatio + 0.5, Center.y)
+
+	// get distance to center	
+	distToCenter := distance(relCenter, unitCoords)
+	
+	// apply center color
+	centerFactor := (1 - smoothstep(DiskRadius, DiskRadius + EdgeSize, distToCenter))
+	return vec4(DiskRGB*DiskOpacity, DiskOpacity)*centerFactor
+}

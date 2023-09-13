@@ -4,6 +4,7 @@ import "github.com/tinne26/transition/src/input"
 import "github.com/tinne26/transition/src/game/state"
 import "github.com/tinne26/transition/src/game/context"
 import "github.com/tinne26/transition/src/game/u16"
+import "github.com/tinne26/transition/src/game/player/motion"
 
 var _ Trigger = (*TrigResponseOnAction)(nil)
 
@@ -25,9 +26,9 @@ func NewResponseOnAction(area u16.Rect, action input.Action, response any, doneS
 	}
 }
 
-func (self *TrigResponseOnAction) Update(playerRect u16.Rect, ctx *context.Context) (any, error) {
+func (self *TrigResponseOnAction) Update(player motion.Shot, ctx *context.Context) (any, error) {
 	if self.done(ctx) { return nil, nil }
-	if !self.area.Overlap(playerRect) { return nil, nil }
+	if !self.area.Overlap(player.Rect) { return nil, nil }
 	if !ctx.Input.Trigger(self.action) { return nil, nil }
 	
 	// response case

@@ -12,7 +12,8 @@ import "github.com/tinne26/transition/src/audio"
 import "github.com/tinne26/transition/src/game/context"
 import "github.com/tinne26/transition/src/game/clr"
 
-// TODO: what about a small flash when the protection recovers? that would be nice, no?
+// TODO: what about a small flash when the protection recovers? that would be 
+// nice, no? Now I have flashes ready too in /game.go, adapt to miniscene
 
 type Challenge struct {
 	X, Y uint16 // exposed as the camera focus point

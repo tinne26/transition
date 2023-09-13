@@ -52,6 +52,16 @@ func Initialize(soundscape *Soundscape, filesys fs.FS) error {
 	sfx.SetVolumeCorrectorFactor(0.37)
 	SfxSwordTap = soundscape.RegisterSFX(sfx)
 
+	sfx, err = loadOggSoundEffect(filesys, "assets/audio/sfx/fuss.ogg")
+	if err != nil { return err }
+	sfx.SetVolumeCorrectorFactor(0.36)
+	SfxFuss = soundscape.RegisterSFX(sfx)
+
+	sfx, err = loadOggSoundEffect(filesys, "assets/audio/sfx/obtain.ogg")
+	if err != nil { return err }
+	sfx.SetVolumeCorrectorFactor(0.4)
+	SfxObtain = soundscape.RegisterSFX(sfx)
+
 	// load and set up bgms
 	var loop1, loop2 *edau.Looper
 	loop1, err = loadLooper(filesys, "assets/audio/bgm/background.ogg", 130, 5499197)

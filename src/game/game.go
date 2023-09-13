@@ -16,6 +16,8 @@ import "github.com/tinne26/transition/src/camera"
 import "github.com/tinne26/transition/src/project"
 import "github.com/tinne26/transition/src/text"
 import "github.com/tinne26/transition/src/game/player"
+import "github.com/tinne26/transition/src/game/player/motion"
+import "github.com/tinne26/transition/src/game/player/miniscene"
 import "github.com/tinne26/transition/src/game/level"
 import "github.com/tinne26/transition/src/game/level/block"
 import "github.com/tinne26/transition/src/game/bckg"
@@ -26,6 +28,7 @@ import "github.com/tinne26/transition/src/game/hint"
 import "github.com/tinne26/transition/src/game/clr"
 import "github.com/tinne26/transition/src/game/sword"
 import "github.com/tinne26/transition/src/game/title"
+import "github.com/tinne26/transition/src/game/flash"
 
 // TODO: while on main menu, return ebiten.Termination if going to "save and quit"
 //       (or maybe stay always saved? autosave on progress / change?)
@@ -54,6 +57,8 @@ type Game struct {
 	ctx *context.Context
 	swordChallenge *sword.Challenge
 	titleScreen *title.Title
+	mini miniscene.Scene
+	flash *flash.Flash
 	
 	// experimental graphical effects and shaders
 	selfModGfxPipe *shaders.SelfModGfxPipe
@@ -61,7 +66,7 @@ type Game struct {
 }
 
 func New(filesys fs.FS) (*Game, error) {
-	err := player.LoadAnimations(filesys)
+	err := motion.LoadAnimations(filesys)
 	if err != nil { return nil, err }
 	err = player.LoadUIGraphics(filesys)
 	if err != nil { return nil, err }
@@ -183,6 +188,12 @@ func (self *Game) Update() error {
 		return nil
 	}
 
+	if self.flash != nil {
+		done, err := self.flash.Update()
+		if err != nil { return err }
+		if done { self.flash = nil }
+	}
+
 	if self.swordChallenge != nil {
 		if self.camera.IsOnTarget() {
 			swordText := self.swordChallenge.CurrentText()
@@ -211,12 +222,19 @@ func (self *Game) Update() error {
 	err = self.camera.Update()
 	if err != nil { return err }
 
-	playerRect := self.player.GetReferenceRect()
-	for _, trigger := range self.levelTriggers {
-		response, err := trigger.Update(playerRect, self.ctx)
+	playerShot := self.player.GetMotionShot()
+	if self.mini != nil {
+		self.textMessage = self.mini.CurrentText()
+		response, err := self.mini.Update(self.ctx, self.camera, self.player.GetQuickStatus())
 		if err != nil { return err }
-		if response != nil {
-			self.HandleTriggerResponse(response)
+		self.HandleMiniResponse(response)
+	} else {
+		for _, trigger := range self.levelTriggers {
+			response, err := trigger.Update(playerShot, self.ctx)
+			if err != nil { return err }
+			if response != nil {
+				self.HandleTriggerResponse(response)
+			}
 		}
 	}
 
@@ -230,7 +248,7 @@ func (self *Game) Update() error {
 
 	// detect player death from falling and/or update fader
 	lim := self.level.GetLimits()
-	if playerRect.Min.Y > lim.Max.Y + 200 {
+	if playerShot.Rect.Min.Y > lim.Max.Y + 200 {
 		self.ctx.Input.BlockTemporarily(40)
 		self.ctx.Audio.PlaySFX(audio.SfxDeath)
 		for _, trigger := range self.levelTriggers { trigger.OnDeath(self.ctx) }
@@ -288,7 +306,7 @@ func (self *Game) Draw(canvas *ebiten.Image) {
 	}
 
 	// get camera position
-	playerRect := self.player.GetReferenceRect()
+	playerRect := self.player.GetMotionShot().Rect
 	limits := self.level.GetLimits()
 	focusArea, xShift, yShift := self.camera.AreaInFocus(640, 360, limits.ToImageRect())
 	focusAreaU16 := u16.FromImageRect(focusArea)
@@ -314,9 +332,19 @@ func (self *Game) Draw(canvas *ebiten.Image) {
 	self.level.DrawParallaxBlocks(self.projector, playerFlags)
 	self.projector.LogicalCanvas.Clear()
 
+	// draw flash
+	if self.flash != nil {
+		self.flash.Draw(self.projector.ActiveCanvas)
+	}
+
 	// draw sword challenge shaders if necessary
 	if self.swordChallenge != nil && self.camera.IsOnTarget() {
 		self.swordChallenge.Draw(self.projector.ActiveCanvas)
+	}
+
+	// draw miniscene if necessary
+	if self.mini != nil {
+		self.mini.BackDraw(self.projector)
 	}
 
 	// draw level blocks and stuff behind player

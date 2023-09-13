@@ -6,6 +6,7 @@ import "github.com/tinne26/transition/src/text"
 import "github.com/tinne26/transition/src/game/state"
 import "github.com/tinne26/transition/src/game/context"
 import "github.com/tinne26/transition/src/game/u16"
+import "github.com/tinne26/transition/src/game/player/motion"
 
 var _ Trigger = (*TrigShowTip)(nil)
 
@@ -26,10 +27,10 @@ func NewShowTip(area, clearedArea u16.Rect, msg *text.Message, clearedSwitch sta
 	}
 }
 
-func (self *TrigShowTip) Update(playerRect u16.Rect, ctx *context.Context) (any, error) {
+func (self *TrigShowTip) Update(player motion.Shot, ctx *context.Context) (any, error) {
 	if ctx.State.Switches[self.clearedSwitch] { return nil, nil }
-	if !self.area.Overlap(playerRect) {
-		if self.clearedArea.Overlap(playerRect) {
+	if !self.area.Overlap(player.Rect) {
+		if self.clearedArea.Overlap(player.Rect) {
 			ctx.State.Switches[self.clearedSwitch] = true
 		}
 		return nil, nil

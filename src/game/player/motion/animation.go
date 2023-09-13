@@ -1,4 +1,4 @@
-package player
+package motion
 
 import "github.com/hajimehoshi/ebiten/v2"
 
@@ -9,6 +9,7 @@ const (
 	SfxKeyNone SfxKey = iota
 	SfxKeyStep
 	SfxKeyJump
+	SfxKeyDeath
 )
 
 type FramePair struct {
@@ -98,6 +99,8 @@ func (self *Animation) playSfx(soundscape *audio.Soundscape) {
 		soundscape.PlaySFX(audio.SfxStep)
 	case SfxKeyJump:
 		soundscape.PlaySFX(audio.SfxJump)
+	case SfxKeyDeath:
+		soundscape.PlaySFX(audio.SfxDeath)
 	default:
 		panic(sfxKey)
 	}

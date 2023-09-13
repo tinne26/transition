@@ -17,18 +17,22 @@ import "github.com/tinne26/transition/src/game/level"
 import "github.com/tinne26/transition/src/game/level/block"
 import "github.com/tinne26/transition/src/game/u16"
 import "github.com/tinne26/transition/src/game/clr"
+import "github.com/tinne26/transition/src/game/player/motion"
+import "github.com/tinne26/transition/src/game/player/comm"
+
+const minConsumedPower = 0.0 // 0.9 // for debug
 
 type Player struct {
 	x, y float64
-	anim *Animation
-	detailAnim *Animation
+	anim *motion.Animation
+	detailAnim *motion.Animation
 	drawOpts ebiten.DrawImageOptions
 
-	motionState MotionState
+	motionState motion.State
 	motionStateTicks uint32 // simple counter for current motion state
 	sinceJumpTrigger uint32
 
-	orientation HorzDir // can't be HorzDirNone
+	orientation motion.HorzDir // can't be HorzDirNone
 	blockFlags block.Flags
 	spentWingJump bool
 	spentWallStick bool
@@ -39,11 +43,13 @@ type Player struct {
 	stepHackHorz int8 // soften steps
 	stepHackVert int8
 	
-	pendingSlipDir HorzDir
+	pendingSlipDir motion.HorzDir
 	pendingSlipTicks uint8
 	pendingSlipIsHorz bool
 
 	powerConsumed float64 // from 0 to 1
+	commPowerConsumption float64
+	powerOffCooldown uint16
 	reversingSelf bool
 	reversingPlants bool
 	reversingGhosts bool
@@ -63,22 +69,31 @@ func New() *Player {
 
 	player := &Player{
 		hearts: 5,
-		orientation: HorzDirRight,
-		detailAnim: AnimDetailIdle,
+		orientation: motion.HorzDirRight,
+		detailAnim: motion.AnimDetailIdle,
 		sinceJumpTrigger: 99999,
+		powerConsumed: minConsumedPower,
 	}
 	return player
 }
 
 func (self *Player) SetIdleAt(centerX, floorY uint16, ctx *context.Context) {
-	self.x = float64(centerX) - playerFrameWidth/2
-	self.y = float64(floorY) - (playerFrameHeight - 3)
-	self.orientation = HorzDirRight
-	self.setMotionState(MStIdle, AnimIdle, ctx)
+	self.x = float64(centerX) - motion.PlayerFrameWidth/2
+	self.y = float64(floorY) - (motion.PlayerFrameHeight - 3)
+	self.orientation = motion.HorzDirRight
+	self.setMotionState(motion.Idle, motion.AnimIdle, ctx)
 }
 
 func (self *Player) SetBlockedForInteraction() {
 	self.blockedForInteraction = math.MaxUint64
+}
+
+func (self *Player) SetMotionPair(pair motion.Pair, ctx *context.Context) {
+	self.SetMotionState(pair.State, pair.Animation, ctx)
+}
+
+func (self *Player) SetMotionState(state motion.State, anim *motion.Animation, ctx *context.Context) {
+	self.setMotionState(state, anim, ctx)
 }
 
 func (self *Player) UnblockInteractionAfter(afterTicks uint64) {
@@ -140,46 +155,61 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *c
 		return nil
 	}
 
-	// deal with interaction block
+	// update power consumption
+	if self.commPowerConsumption > 0 {
+		self.powerConsumed += self.commPowerConsumption
+		if self.powerConsumed > 1.0 {
+			self.powerConsumed = 1.0
+			self.powerOffCooldown = 40
+		}
+	} else if self.powerConsumed > 0 {
+		if self.powerOffCooldown > 0 {
+			self.powerOffCooldown -= 1
+		} else {
+			self.powerConsumed -= 0.0016
+			if self.powerConsumed < minConsumedPower {
+				self.powerConsumed = minConsumedPower
+			}
+		}
+	}
+
+	// stop here if blocked for interaction
 	if self.blockedForInteraction > 0 {
-		if self.anim != AnimInteract {
-			self.setMotionState(MStIdle, AnimInteract, ctx)
-		}
 		self.blockedForInteraction -= 1
-		if self.blockedForInteraction == 0 {
-			self.setMotionState(MStIdle, AnimIdle, ctx)
-		}
+		// if self.blockedForInteraction == 0 {
+		// 	self.setMotionState(motion.Idle, motion.AnimIdle, ctx)
+		// }
 		return nil
 	}
 
 	// TODO: hack for testing power bar
-	if ctx.Input.Pressed(input.ActionOutReverse) {
-		self.powerConsumed += 0.002
-		if self.powerConsumed > 1.0 {
-			self.powerConsumed = 1.0
-			// ...
-		}
-	} else {
-		self.powerConsumed -= 0.002
-		if self.powerConsumed < 0 {
-			self.powerConsumed = 0.0
-			// ...
-		}
-	}
+	// if ctx.Input.Pressed(input.ActionOutReverse) {
+	// 	self.powerConsumed += 0.002
+	// 	if self.powerConsumed > 1.0 {
+	// 		self.powerConsumed = 1.0
+	// 		// ...
+	// 	}
+	// } else {
+	// 	self.powerConsumed -= 0.002
+	// 	if self.powerConsumed < 0 {
+	// 		self.powerConsumed = 0.0
+	// 		// ...
+	// 	}
+	// }
 
 	// predeclare final position variables
 	var newX, newY float64 = self.x, self.y
 
 	// handle horizontal movement
 	horzDir := self.getHorzMov(ctx)
-	if horzDir == HorzDirNone {
+	if horzDir == motion.HorzDirNone {
 		if self.motionStateCanStopGroundHorzMove() {
-			self.setMotionState(MStIdle, AnimIdle, ctx)
+			self.setMotionState(motion.Idle, motion.AnimIdle, ctx)
 		}
 	} else if self.motionStateAllowsHorzMove() {
 		// apply new motion state triggers if relevant
-		if self.motionState == MStIdle {
-			self.setMotionState(MStMoving, AnimRun, ctx)
+		if self.motionState == motion.Idle {
+			self.setMotionState(motion.Moving, motion.AnimRun, ctx)
 		}
 
 		// apply movement to X position
@@ -195,8 +225,8 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *c
 		if leftPix  { newX -= 1.0 }
 		if rightPix || leftPix {
 			horzDir = self.orientation
-			if self.motionState == MStIdle {
-				self.setMotionState(MStMoving, AnimRun, ctx)
+			if self.motionState == motion.Idle {
+				self.setMotionState(motion.Moving, motion.AnimRun, ctx)
 			}
 		}
 	}
@@ -218,37 +248,37 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *c
 		self.jumpTicksGoal = DefaultJumpTicks
 
 		// specific setup
-		if self.motionState == MStFalling && self.allowLenientJumpOnFall() {
-			self.motionState = MStMoving // hack for lenient jumps
+		if self.motionState == motion.Falling && self.allowLenientJumpOnFall() {
+			self.motionState = motion.Moving // hack for lenient jumps
 		}
 		switch self.motionState {
-		case MStJumping, MStFalling:
-			self.setMotionState(MStWingJump, AnimFall, ctx)
+		case motion.Jumping, motion.Falling:
+			self.setMotionState(motion.WingJump, motion.AnimFall, ctx)
 			self.jumpTicksGoal = WingJumpTicks
 			self.spentWingJump = true
-		case MStWallStick:
-			self.setMotionState(MStJumping, AnimInAir, ctx)
+		case motion.WallStick:
+			self.setMotionState(motion.Jumping, motion.AnimInAir, ctx)
 			self.wallStickAwayJumpLeft = 32
-			if self.orientation == HorzDirLeft {
-				self.orientation = HorzDirRight
+			if self.orientation == motion.HorzDirLeft {
+				self.orientation = motion.HorzDirRight
 			} else {
-				self.orientation = HorzDirLeft
+				self.orientation = motion.HorzDirLeft
 			}
 		default:
-			self.setMotionState(MStJumping, AnimInAir, ctx)
+			self.setMotionState(motion.Jumping, motion.AnimInAir, ctx)
 		}
 	}
 
 	// handle letting go wall stick
-	if self.motionState == MStWallStick && ctx.Input.Trigger(input.ActionDown) {
-		self.setMotionState(MStFalling, AnimFall, ctx)
+	if self.motionState == motion.WallStick && ctx.Input.Trigger(input.ActionDown) {
+		self.setMotionState(motion.Falling, motion.AnimFall, ctx)
 		self.x -= self.orientation.Sign()*1.0 // force slight distancing from wall
 		newX = self.x
 	}
 
 	// handle gravity
 	switch self.motionState {
-	case MStFalling:
+	case motion.Falling:
 		newY += self.airFallSpeed()
 		
 		// handle wall stick jump separation
@@ -256,21 +286,21 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *c
 			self.wallStickAwayJumpLeft -= 1
 			newX += self.orientation.Sign()*self.getHorzMovSpeed()
 		}
-	case MStWallStick:
+	case motion.WallStick:
 		if self.motionStateTicks < 24 {
 			// nothing, stay still
 		} else if self.motionStateTicks < 36 {
 			newY += 0.1
 		} else {
-			self.setMotionState(MStFalling, AnimFall, ctx)
+			self.setMotionState(motion.Falling, motion.AnimFall, ctx)
 			self.x -= self.orientation.Sign()*1.0 // force slight distancing from wall
 			newX = self.x
 		}
-	case MStJumping, MStWingJump:
+	case motion.Jumping, motion.WingJump:
 		speed := self.getJumpRaiseSpeed(ctx)
 		newY -= speed
 		if speed == 0 {
-			self.setMotionState(MStFalling, AnimFall, ctx)
+			self.setMotionState(motion.Falling, motion.AnimFall, ctx)
 		}
 
 		// handle wall stick jump separation
@@ -291,7 +321,7 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *c
 	// determine relevant horizontal range to iterate
 	rangeMin, rangeMax := utils.MinMax(uint16(self.x), uint16(newX))
 	rangeMin += 2 // -1 + 3
-	rangeMax += playerFrameWidth - 2
+	rangeMax += motion.PlayerFrameWidth - 2
 
 	// check each block that may interact with
 	// our current position or path to new position
@@ -313,14 +343,14 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *c
 				self.spentWallStick = false
 
 				floorContact = block.ContactGround
-				if self.motionState == MStFalling {
+				if self.motionState == motion.Falling {
 					// TODO: consider fall damage or big impact reception.
 					// e.g. jump start y, or airMaxY vs current Y.
 					if self.x != newX {
-						self.setMotionState(MStMoving, AnimRun, ctx)
+						self.setMotionState(motion.Moving, motion.AnimRun, ctx)
 						self.anim.SkipIntro(ctx.Audio)
 					} else {
-						self.setMotionState(MStIdle, AnimIdle, ctx)
+						self.setMotionState(motion.Idle, motion.AnimIdle, ctx)
 						ctx.Audio.PlaySFX(audio.SfxStep)
 					}
 					yLimitReached = true
@@ -344,8 +374,8 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *c
 				
 				if !self.inFloatyMotionState() {
 					yLimitReached = true
-					if self.anim != AnimTightFront1 {
-						self.setMotionState(MStIdle, AnimTightFront1, ctx)
+					if self.anim != motion.AnimTightFront1 {
+						self.setMotionState(motion.Idle, motion.AnimTightFront1, ctx)
 					}
 				}
 			case block.ContactTightFront2:
@@ -355,8 +385,8 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *c
 				
 				if !self.inFloatyMotionState() {
 					yLimitReached = true
-					if self.anim != AnimTightFront2 {
-						self.setMotionState(MStIdle, AnimTightFront2, ctx)
+					if self.anim != motion.AnimTightFront2 {
+						self.setMotionState(motion.Idle, motion.AnimTightFront2, ctx)
 					}
 				}
 			case block.ContactTightBack1:
@@ -366,8 +396,8 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *c
 				
 				if !self.inFloatyMotionState() {
 					yLimitReached = true
-					if self.anim != AnimTightBack1 {
-						self.setMotionState(MStIdle, AnimTightBack1, ctx)
+					if self.anim != motion.AnimTightBack1 {
+						self.setMotionState(motion.Idle, motion.AnimTightBack1, ctx)
 					}
 				}
 			case block.ContactTightBack2:
@@ -377,27 +407,27 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *c
 
 				if !self.inFloatyMotionState() {
 					yLimitReached = true
-					if self.anim != AnimTightBack2 {
-						self.setMotionState(MStIdle, AnimTightBack2, ctx)
+					if self.anim != motion.AnimTightBack2 {
+						self.setMotionState(motion.Idle, motion.AnimTightBack2, ctx)
 					}
 				}
 			case block.ContactWallStick:
 				// treat as side block if wall stick already spent or falling too hard
-				if self.spentWallStick || (self.motionState == MStFalling && self.motionStateTicks > 30) {
+				if self.spentWallStick || (self.motionState == motion.Falling && self.motionStateTicks > 30) {
 					contact = block.ContactSideBlock
 					goto redirect
 				}
 
 				self.spentWingJump = false
 				self.spentWallStick = true
-				self.setMotionState(MStWallStick, AnimWallStick, ctx)
+				self.setMotionState(motion.WallStick, motion.AnimWallStick, ctx)
 				self.removeAllBlockFlagInertias()
 				xLimitReached, yLimitReached = true, true
 			case block.ContactClonk:
-				if self.motionState != MStFalling {
+				if self.motionState != motion.Falling {
 					self.blockFlags &= ^block.FlagInertiaUp
 					yLimitReached = true
-					self.setMotionState(MStFalling, AnimFall, ctx)
+					self.setMotionState(motion.Falling, motion.AnimFall, ctx)
 				}
 			case block.ContactSideBlock:
 				xLimitReached = true
@@ -448,8 +478,8 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *c
 				}
 				
 				// adjust state and animation if necessary
-				if self.motionState != MStMoving {
-					self.setMotionState(MStMoving, AnimRun, ctx)
+				if self.motionState != motion.Moving {
+					self.setMotionState(motion.Moving, motion.AnimRun, ctx)
 					self.anim.SkipIntro(ctx.Audio)
 				}
 				xLimitReached, yLimitReached = true, true
@@ -469,7 +499,7 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *c
 		// switch to falling if relevant on lack of contact
 		if self.canSlipIntoFall() && floorContact == block.ContactNone {
 			self.sinceNoContactFall = 1
-			self.setMotionState(MStFalling, AnimFall, ctx)
+			self.setMotionState(motion.Falling, motion.AnimFall, ctx)
 		}
 
 		// stop or continue
@@ -491,7 +521,7 @@ func (self *Player) Update(cam *camera.Camera, currentLevel *level.Level, ctx *c
 	// update position, snapping it to the pixel grid when
 	// not moving in an axis in order to prevent blurriness
 	if self.x == newX { // no horz move case
-		if self.orientation == HorzDirRight { // && !self.motionStatePreventsCeilSnap()
+		if self.orientation == motion.HorzDirRight { // && !self.motionStatePreventsCeilSnap()
 			self.x = utils.FastCeil(self.x)
 		} else {
 			self.x = utils.FastFloor(self.x)
@@ -536,16 +566,16 @@ func (self *Player) Draw(projector *project.Projector) {
 	frame := self.anim.GetCurrentFrame(self.reversingSelf)
 
 	// apply orientation
-	if self.orientation == HorzDirLeft {
+	if self.orientation == motion.HorzDirLeft {
 		self.drawOpts.GeoM.Scale(-1, 1)
-		tx += playerFrameWidth
+		tx += motion.PlayerFrameWidth
 	}
 
 	// apply death ticks
 	if self.ticksDead > 0 {
 		zoom := 1.0 + utils.Min(float64(self.ticksDead)/64.0, 2.0)
 		var alpha float32 = utils.Max(0, 1.0 - float32(self.ticksDead)/100.0)
-		w2, h2 := playerFrameWidth/2.0, playerFrameHeight/2.0
+		w2, h2 := motion.PlayerFrameWidth/2.0, motion.PlayerFrameHeight/2.0
 		self.drawOpts.GeoM.Translate(-w2, -h2)
 		self.drawOpts.GeoM.Scale(zoom, zoom)
 		self.drawOpts.GeoM.Translate(w2, h2)
@@ -555,11 +585,19 @@ func (self *Player) Draw(projector *project.Projector) {
 	projector.LogicalCanvas.DrawImage(frame, &self.drawOpts)
 	
 	// draw detail part too (maximum hardcoding)
-	if self.orientation == HorzDirRight {
+	if self.orientation == motion.HorzDirRight {
 		self.drawOpts.GeoM.Translate(-18, +12)
 	} else {
-		self.drawOpts.GeoM.Translate(playerFrameWidth + 1, +12)
+		self.drawOpts.GeoM.Translate(motion.PlayerFrameWidth + 1, +12)
 	}
+	
+	if self.anim == motion.AnimFallen { // nasty hack for visuals adjustment
+		if self.anim.InPreLoopPhase() {
+			self.drawOpts.GeoM.Translate(0, 1)
+		} else {
+			self.drawOpts.GeoM.Translate(0, 2)
+		}
+	} 
 	projector.LogicalCanvas.DrawImage(self.detailAnim.GetCurrentFrame(self.reversingSelf), &self.drawOpts)
 
 	// project from logical canvas to screen canvas
@@ -612,9 +650,30 @@ func (self *Player) DrawPowerBarFill(projector *project.Projector) {
 
 // ---- secondary public functions ----
 
-func (self *Player) GetReferenceRect() u16.Rect {
+func (self *Player) GetMotionShot() motion.Shot {
 	minX, minY := uint16(self.x) + 3, uint16(self.y) + 5
-	return u16.NewRect(minX, minY, minX + 11, minY + 43)
+	return motion.Shot{
+		Rect: u16.NewRect(minX, minY, minX + 11, minY + 43),
+		Orientation: self.orientation,
+		Animation: self.anim,
+		State: self.motionState,
+	}
+}
+
+func (self *Player) ReceiveAction(action comm.Action, ctx *context.Context) {
+	switch action.GetType() {
+	case comm.ActionSetPowerConsumption:
+		self.commPowerConsumption = float64(action.GetPowerConsumption())
+	default:
+		panic(action.GetType())
+	}
+}
+
+func (self *Player) GetQuickStatus() comm.Status {
+	return comm.Status{
+		PowerGauge: 1.0 - self.powerConsumed,
+		MotionShot: self.GetMotionShot(),
+	}
 }
 
 // Death functions that allow the main game to reset the player position and whatever.
@@ -623,7 +682,7 @@ func (self *Player) TicksSinceDeath() uint8 { return self.ticksDead }
 func (self *Player) GetBlockFlags() block.Flags { return self.blockFlags }
 
 func (self *Player) GetCameraTargetPos() (float64, float64) {
-	return self.x + float64(int(playerFrameWidth)/2), self.y - 20
+	return self.x + float64(int(motion.PlayerFrameWidth)/2), self.y - 20
 }
 
 // --- block flags ---
@@ -640,7 +699,7 @@ func (self *Player) refreshBlockFlags(newX, newY float64, ctx *context.Context) 
 	if self.reversingPlants {
 		self.blockFlags |= block.FlagPlantsReversed
 	}
-	if self.orientation == HorzDirLeft {
+	if self.orientation == motion.HorzDirLeft {
 		self.blockFlags |= block.FlagLeftOriented
 	}
 }
@@ -657,14 +716,14 @@ func (self *Player) removeAllBlockFlagInertias() {
 func (self *Player) updateWallStickHacks() {
 	if self.wallStickAwayJumpLeft == 0 { return }
 	
-	if self.motionState == MStFalling {
+	if self.motionState == motion.Falling {
 		self.wallStickAwayJumpLeft -= 1
-	} else if self.motionState != MStJumping {
+	} else if self.motionState != motion.Jumping {
 		self.wallStickAwayJumpLeft = 0
 	}
 }
 
-func (self *Player) setMotionState(state MotionState, anim *Animation, ctx *context.Context) {
+func (self *Player) setMotionState(state motion.State, anim *motion.Animation, ctx *context.Context) {
 	//fmt.Printf("setting motion state %s, anim %s\n", state.String(), anim.Name())
 	self.motionState = state // always possible due to level design
 	self.motionStateTicks = 0
@@ -675,14 +734,14 @@ func (self *Player) setMotionState(state MotionState, anim *Animation, ctx *cont
 	
 	// hardcoded detail anim handling, of course
 	switch state {
-	case MStWingJump:
-		self.detailAnim = AnimDetailJump
+	case motion.WingJump:
+		self.detailAnim = motion.AnimDetailJump
 		self.detailAnim.Rewind(ctx.Audio)
-	// case MStDash:
-	// 	self.detailAnim = AnimDetailDash
+	// case motion.Dash:
+	// 	self.detailAnim = motion.AnimDetailDash
 	//    self.detailAnim.Rewind()
 	default:
-		self.detailAnim = AnimDetailIdle
+		self.detailAnim = motion.AnimDetailIdle
 	}
 }
 
@@ -690,9 +749,9 @@ func (self *Player) motionStateAllowsHorzMove() bool {
 	if self.wallStickAwayJumpLeft > 0 { return false }
 
 	switch self.motionState {
-	case MStFalling, MStIdle, MStMoving, MStWingJump:
+	case motion.Falling, motion.Idle, motion.Moving, motion.WingJump:
 		return true
-	case MStJumping:
+	case motion.Jumping:
 		if self.wallStickAwayJumpLeft > 0 { return false }
 		return true
 	default:
@@ -702,9 +761,9 @@ func (self *Player) motionStateAllowsHorzMove() bool {
 
 func (self *Player) motionStateAllowsJump() bool {
 	switch self.motionState {
-	case MStIdle, MStMoving, MStWallStick:
+	case motion.Idle, motion.Moving, motion.WallStick:
 		return true
-	case MStFalling, MStJumping:
+	case motion.Falling, motion.Jumping:
 		if self.allowLenientJumpOnFall() { return true }
 		return !self.reversingSelf && !self.spentWingJump && self.sinceNoContactFall > 14
 	default:
@@ -718,19 +777,19 @@ func (self *Player) allowLenientJumpOnFall() bool {
 
 func (self *Player) motionStateCanStopGroundHorzMove() bool {
 	switch self.motionState {
-	case MStMoving, MStStairUp, MStStairDown:
+	case motion.Moving, motion.StairUp, motion.StairDown:
 		return true
 	default:
 		return false
 	}
 }
 
-func (self *Player) getHorzMov(ctx *context.Context) HorzDir {
+func (self *Player) getHorzMov(ctx *context.Context) motion.HorzDir {
 	action, pressed := ctx.Input.LastPressed(input.ActionMoveRight, input.ActionMoveLeft)
-	if !pressed { return HorzDirNone }
+	if !pressed { return motion.HorzDirNone }
 	switch action {
-	case input.ActionMoveLeft : return HorzDirLeft
-	case input.ActionMoveRight: return HorzDirRight
+	case input.ActionMoveLeft : return motion.HorzDirLeft
+	case input.ActionMoveRight: return motion.HorzDirRight
 	default:
 		panic("unexpected input action " + action.String())
 	}
@@ -738,15 +797,15 @@ func (self *Player) getHorzMov(ctx *context.Context) HorzDir {
 
 func (self *Player) getHorzMovSpeed() float64 {
 	switch self.motionState {
-	case MStMoving:
+	case motion.Moving:
 		if self.anim.InPreLoopPhase() {
 			return 1.0
 		}
-	case MStJumping:
+	case motion.Jumping:
 		return 1.8
-	case MStWingJump:
+	case motion.WingJump:
 		return 1.9
-	case MStDash:
+	case motion.Dash:
 		return 4.3
 	}
 
@@ -757,7 +816,7 @@ func (self *Player) getJumpRaiseSpeed(ctx *context.Context) float64 {
 	if self.motionStateTicks >= self.jumpTicksGoal { return 0.0 }
 	if !ctx.Input.Pressed(input.ActionJump) {
 		goal := uint32(DefaultJumpTicks)
-		if self.motionState == MStWingJump {
+		if self.motionState == motion.WingJump {
 			goal = uint32(WingJumpTicks)
 		}
 		if self.jumpTicksGoal == goal {
@@ -790,7 +849,7 @@ func (self *Player) canSlipIntoFall() bool {
 	// NOTICE: jumps are not enumerated here because that's 
 	//         considered on gravity application (not a slip)
 	switch self.motionState {
-	case MStIdle, MStMoving:
+	case motion.Idle, motion.Moving:
 		return true
 	default:
 		return false
@@ -799,7 +858,7 @@ func (self *Player) canSlipIntoFall() bool {
 
 func (self *Player) motionStatePreventsCeilSnap() bool {
 	switch self.motionState {
-	case MStWallStick, MStFalling: // TODO: maybe jumping and others, but I don't think it can happen?
+	case motion.WallStick, motion.Falling: // TODO: maybe jumping and others, but I don't think it can happen?
 		return true
 	default:
 		return false
@@ -810,7 +869,7 @@ func (self *Player) motionStatePreventsCeilSnap() bool {
 // platform side slips and similar.
 func (self *Player) inFloatyMotionState() bool {
 	switch self.motionState {
-	case MStJumping, MStDash, MStWingJump:
+	case motion.Jumping, motion.Dash, motion.WingJump:
 		return true
 	default:
 		return false

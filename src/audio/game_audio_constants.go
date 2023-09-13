@@ -8,6 +8,8 @@ var (
 	SfxReverse  SfxKey = 0
 	SfxSwordEnd SfxKey = 0
 	SfxSwordTap SfxKey = 0
+	SfxFuss     SfxKey = 0
+	SfxObtain   SfxKey = 0
 )
 
 var (

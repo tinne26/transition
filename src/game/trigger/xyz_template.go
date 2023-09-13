@@ -2,6 +2,7 @@ package trigger
 
 import "github.com/tinne26/transition/src/game/context"
 import "github.com/tinne26/transition/src/game/u16"
+import "github.com/tinne26/transition/src/game/player/motion"
 
 var _ Trigger = (*TrigTemplate)(nil)
 
@@ -16,8 +17,8 @@ func NewTemplate(area u16.Rect) Trigger {
 	}
 }
 
-func (self *TrigTemplate) Update(playerRect u16.Rect, _ *context.Context) (any, error) {
-	if !self.area.Overlap(playerRect) { return nil, nil }
+func (self *TrigTemplate) Update(player motion.Shot, _ *context.Context) (any, error) {
+	if !self.area.Overlap(player.Rect) { return nil, nil }
 	
 	// ...
 

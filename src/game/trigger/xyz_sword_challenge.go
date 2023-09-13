@@ -3,6 +3,7 @@ package trigger
 import "time"
 
 import "github.com/tinne26/transition/src/game/u16"
+import "github.com/tinne26/transition/src/game/player/motion"
 import "github.com/tinne26/transition/src/game/state"
 import "github.com/tinne26/transition/src/game/hint"
 import "github.com/tinne26/transition/src/game/sword"
@@ -28,9 +29,12 @@ func NewSwordChallenge(area u16.Rect, ihint hint.Hint, challenge *sword.Challeng
 	}
 }
 
-func (self *TrigSwordChallenge) Update(playerRect u16.Rect, ctx *context.Context) (any, error) {
-	if !self.area.Overlap(playerRect) { return nil, nil }
-	
+func (self *TrigSwordChallenge) Update(player motion.Shot, ctx *context.Context) (any, error) {
+	if !self.area.Overlap(player.Rect) { return nil, nil }
+	if !player.IsLookingTowards(self.area.GetCenterX()) || !player.OnStableState() {
+		return nil, nil
+	}
+
 	if !ctx.State.Switches[self.doneSwitch] {
 		if ctx.Input.Trigger(input.ActionInteract) {
 			ctx.Audio.PlaySFX(audio.SfxInteract)

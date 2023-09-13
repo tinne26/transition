@@ -17,12 +17,14 @@ const (
 	TypeExclam   HintType = 0b0000_0010
 	TypeReverse  HintType = 0b0000_0011
 	TypeInteract HintType = 0b0000_0100
+	TypeDisrupt  HintType = 0b0000_0101
 )
 
 var gfxDots *ebiten.Image
 var gfxExclam *ebiten.Image
 var gfxReverse *ebiten.Image
 var gfxInteract *ebiten.Image
+var gfxDisrupt *ebiten.Image
 func LoadHintGraphics(filesys fs.FS) error {
 	var err error
 	gfxDots, err = utils.LoadFsEbiImage(filesys, "assets/graphics/ui/hints/talk.png")
@@ -32,6 +34,8 @@ func LoadHintGraphics(filesys fs.FS) error {
 	gfxReverse, err = utils.LoadFsEbiImage(filesys, "assets/graphics/ui/hints/external_reverse.png")
 	if err != nil { return err }
 	gfxInteract, err = utils.LoadFsEbiImage(filesys, "assets/graphics/ui/hints/interact.png")
+	if err != nil { return err }
+	gfxDisrupt, err = utils.LoadFsEbiImage(filesys, "assets/graphics/ui/hints/disrupt_reverse.png")
 	if err != nil { return err }
 	return nil
 }
@@ -62,6 +66,7 @@ func (self Hint) Draw(projector *project.Projector, playerX, playerY uint16) {
 	case TypeExclam:   img = gfxExclam
 	case TypeReverse:  img = gfxReverse
 	case TypeInteract: img = gfxInteract
+	case TypeDisrupt:  img = gfxDisrupt
 	default:
 		panic(self.htype & subtypeMask)
 	}

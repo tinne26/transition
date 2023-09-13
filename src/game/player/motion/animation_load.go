@@ -1,4 +1,4 @@
-package player
+package motion
 
 import "image"
 import "io/fs"
@@ -18,6 +18,8 @@ var AnimInAir *Animation // falling, double jumps, dash... everything as I didn'
 var AnimFall *Animation
 var AnimWallStick *Animation
 var AnimInteract *Animation
+var AnimFallen *Animation
+var AnimStandUp *Animation
 
 var AnimDetailIdle *Animation
 var AnimDetailJump *Animation
@@ -80,6 +82,20 @@ func LoadAnimations(filesys fs.FS) error {
 	AnimRun.AddFrame(playerFramePairAt(2, 2), t)
 	AnimRun.AddFrameWithSfx(playerFramePairAt(2, 3), t, SfxKeyStep)
 
+	// fallen animation
+	AnimFallen = NewAnimation("AnimFallen")
+	AnimFallen.AddFrame(playerFramePairAt(2, 5), 12)
+	fallen := playerFramePairAt(2, 4)
+	AnimFallen.AddFrameWithSfx(fallen, 4, SfxKeyDeath)
+	AnimFallen.AddFrame(fallen, 255)
+	AnimFallen.SetLoopStart(2)
+
+	// fallen animation
+	AnimStandUp = NewAnimation("AnimStandUp")
+	AnimStandUp.AddFrame(playerFramePairAt(2, 5), 24)
+	AnimStandUp.AddFrame(idle, 255)
+	AnimStandUp.SetLoopStart(1)
+
 	// wall stick
 	AnimWallStick = NewAnimation("AnimWallStick")
 	AnimWallStick.AddFrame(playerFramePairAt(3, 4), 60)
@@ -121,10 +137,10 @@ func LoadAnimations(filesys fs.FS) error {
 	return nil
 }
 
-const playerFrameWidth  = 17
-const playerFrameHeight = 51
+const PlayerFrameWidth  = 17
+const PlayerFrameHeight = 51
 func playerFramePairAt(row, col int) FramePair {
-	rect := image.Rect(playerFrameWidth*col, playerFrameHeight*row, playerFrameWidth*(col + 1), playerFrameHeight*(row + 1))
+	rect := image.Rect(PlayerFrameWidth*col, PlayerFrameHeight*row, PlayerFrameWidth*(col + 1), PlayerFrameHeight*(row + 1))
 	return FramePair{
 		Wings: playerWingsSpritesheet.SubImage(rect).(*ebiten.Image),
 		Horns: nil,

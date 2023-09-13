@@ -34,6 +34,9 @@ var chromaticAberrationSrc []byte
 //go:embed radial_blur.kage
 var radialBlurSrc []byte
 
+//go:embed reversal_disk.kage
+var reversalDiskSrc []byte
+
 //go:embed transparency_highlighter.kage
 var transparencyHighlighterSrc []byte
 
@@ -47,6 +50,7 @@ var ParallaxProjection *ebiten.Shader
 var VignetteBW *ebiten.Shader
 var ChromaticAberration *ebiten.Shader
 var RadialBlur *ebiten.Shader
+var ReversalDisk *ebiten.Shader
 var TransparencyHighlighter *ebiten.Shader
 
 func LoadAll() error {
@@ -86,6 +90,10 @@ func LoadAll() error {
 
 	// poor man's radial blur
 	RadialBlur, err = ebiten.NewShader(radialBlurSrc)
+	if err != nil { return err }
+
+	// poor man's radial blur
+	ReversalDisk, err = ebiten.NewShader(reversalDiskSrc)
 	if err != nil { return err }
 
 	// identity
